@@ -6,9 +6,8 @@ import Foundation
 struct ProcessCleanupTests {
 
     @Test("Running job processes are terminated on shutdown")
-    func terminatesOnShutdown() throws {
+    func terminatesOnShutdown() async throws {
         let tmpDir = makeTempDir(prefix: "cleanup")
-        // A job that sleeps for 60 seconds
         let source = "import Foundation\nThread.sleep(forTimeInterval: 60)\n"
         createJobDir(in: tmpDir, name: "long-running", swiftSource: source)
         let config = JobConfig(intervalSeconds: 9999, timeout: 60)
@@ -18,22 +17,18 @@ struct ProcessCleanupTests {
         try compiler.compile(job: descriptor)
 
         let scheduler = Scheduler()
-        scheduler.syncJobs(discovered: [descriptor])
+        await scheduler.syncJobs(discovered: [descriptor])
 
-        // Tick dispatches the long-running job
-        scheduler.tick()
-        Thread.sleep(forTimeInterval: 0.5)
+        await scheduler.tick()
+        try await Task.sleep(for: .milliseconds(500))
 
-        // Job should be running
-        let job = scheduler.job(named: "long-running")
+        let job = await scheduler.job(named: "long-running")
         #expect(job?.isRunning == true)
 
-        // Shutdown should terminate the process
         let start = Date.now
         scheduler.terminateAllRunning(gracePeriod: 2.0)
         let elapsed = Date.now.timeIntervalSince(start)
 
-        // Should complete quickly, not wait 60 seconds
         #expect(elapsed < 10)
         cleanupTempDir(tmpDir)
     }

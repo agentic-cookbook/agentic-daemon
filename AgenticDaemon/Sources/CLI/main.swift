@@ -18,4 +18,4 @@ signal(SIGINT) { _ in
 }
 
 logger.info("agentic-daemon starting")
-controller.run()
+await controller.run()

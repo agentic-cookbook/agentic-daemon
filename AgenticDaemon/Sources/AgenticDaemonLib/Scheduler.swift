@@ -1,16 +1,16 @@
 import Foundation
 import os
 
-public final class Scheduler: @unchecked Sendable {
+public actor Scheduler {
     private let logger = Logger(
         subsystem: "com.agentic-cookbook.daemon",
         category: "Scheduler"
     )
     private let compiler = SwiftCompiler()
     private let runner = JobRunner()
-    private let lock = NSLock()
     private var scheduledJobs: [String: ScheduledJob] = [:]
-    private var runningProcesses: [String: Process] = [:]
+    private nonisolated(unsafe) var runningProcesses: [String: Process] = [:]
+    private let processLock = NSLock()
 
     public struct ScheduledJob: Sendable {
         public let descriptor: JobDescriptor
@@ -22,13 +22,9 @@ public final class Scheduler: @unchecked Sendable {
     public init() {}
 
     public func syncJobs(discovered: [JobDescriptor]) {
-        lock.lock()
-        defer { lock.unlock() }
-
         let discoveredNames = Set(discovered.map(\.name))
         let currentNames = Set(scheduledJobs.keys)
 
-        // Add new jobs
         for job in discovered where !currentNames.contains(job.name) {
             guard job.config.enabled else {
                 logger.info("Skipping disabled job: \(job.name)")
@@ -42,13 +38,11 @@ public final class Scheduler: @unchecked Sendable {
             logger.info("Added job: \(job.name) (interval: \(job.config.intervalSeconds)s)")
         }
 
-        // Remove deleted jobs
         for name in currentNames.subtracting(discoveredNames) {
             scheduledJobs.removeValue(forKey: name)
             logger.info("Removed job: \(name)")
         }
 
-        // Recompile changed sources
         for job in discovered where currentNames.contains(job.name) {
             if compiler.needsCompile(job: job) {
                 logger.info("Source changed for \(job.name), recompiling")
@@ -58,7 +52,6 @@ public final class Scheduler: @unchecked Sendable {
     }
 
     public func tick() {
-        lock.lock()
         let now = Date.now
         var jobsToRun: [ScheduledJob] = []
 
@@ -68,41 +61,42 @@ public final class Scheduler: @unchecked Sendable {
         for job in jobsToRun {
             scheduledJobs[job.descriptor.name]?.isRunning = true
         }
-        lock.unlock()
 
         for job in jobsToRun {
             let descriptor = job.descriptor
-            DispatchQueue.global(qos: .utility).async { [self] in
+            Task.detached(priority: .utility) { [self] in
                 let process = runner.launch(job: descriptor)
 
                 if let process {
-                    lock.lock()
-                    runningProcesses[descriptor.name] = process
-                    lock.unlock()
+                    self.processLock.withLock {
+                        self.runningProcesses[descriptor.name] = process
+                    }
 
-                    runner.waitForCompletion(process: process, job: descriptor)
+                    self.runner.waitForCompletion(process: process, job: descriptor)
 
-                    lock.lock()
-                    runningProcesses.removeValue(forKey: descriptor.name)
-                    lock.unlock()
+                    _ = self.processLock.withLock {
+                        self.runningProcesses.removeValue(forKey: descriptor.name)
+                    }
                 }
 
-                lock.lock()
-                if var entry = scheduledJobs[descriptor.name] {
-                    let interval = backoffInterval(for: entry)
-                    entry.nextRun = Date.now.addingTimeInterval(interval)
-                    entry.isRunning = false
-                    scheduledJobs[descriptor.name] = entry
-                }
-                lock.unlock()
+                await self.markJobCompleted(name: descriptor.name)
             }
         }
     }
 
-    public func terminateAllRunning(gracePeriod: TimeInterval) {
-        lock.lock()
+    private func markJobCompleted(name: String) {
+        if var entry = scheduledJobs[name] {
+            let interval = backoffInterval(for: entry)
+            entry.nextRun = Date.now.addingTimeInterval(interval)
+            entry.isRunning = false
+            scheduledJobs[name] = entry
+        }
+    }
+
+    public nonisolated func terminateAllRunning(gracePeriod: TimeInterval) {
+        processLock.lock()
         let processes = Array(runningProcesses.values)
-        lock.unlock()
+        processLock.unlock()
 
         guard !processes.isEmpty else { return }
 
@@ -129,27 +123,19 @@ public final class Scheduler: @unchecked Sendable {
     }
 
     public var isEmpty: Bool {
-        lock.lock()
-        defer { lock.unlock() }
-        return scheduledJobs.isEmpty
+        scheduledJobs.isEmpty
     }
 
     public var jobCount: Int {
-        lock.lock()
-        defer { lock.unlock() }
-        return scheduledJobs.count
+        scheduledJobs.count
     }
 
     public var jobNames: Set<String> {
-        lock.lock()
-        defer { lock.unlock() }
-        return Set(scheduledJobs.keys)
+        Set(scheduledJobs.keys)
     }
 
     public func job(named name: String) -> ScheduledJob? {
-        lock.lock()
-        defer { lock.unlock() }
-        return scheduledJobs[name]
+        scheduledJobs[name]
     }
 
     private func compileIfNeeded(job: JobDescriptor) {
@@ -179,7 +165,6 @@ public final class Scheduler: @unchecked Sendable {
         }
         let maxBackoff = baseInterval * Double(1 << min(consecutiveFailures, 6))
         let capped = min(maxBackoff, 3600)
-        // Full jitter: uniform random in [baseInterval, capped]
         let jittered = Double.random(in: baseInterval...capped)
         return jittered
     }

@@ -9,7 +9,7 @@ public final class DaemonController: @unchecked Sendable {
 
     private let supportDirectory: URL
     private let jobsDirectory: URL
-    private let scheduler = Scheduler()
+    public let scheduler = Scheduler()
     private let discovery: JobDiscovery
     private var watcher: DirectoryWatcher?
     private var running = true
@@ -24,29 +24,31 @@ public final class DaemonController: @unchecked Sendable {
         discovery = JobDiscovery(jobsDirectory: jobsDirectory)
     }
 
-    public func run() {
+    public func run() async {
         logger.info("Starting agentic-daemon")
 
         createDirectories()
 
         let jobs = discovery.discover()
-        scheduler.syncJobs(discovered: jobs)
+        await scheduler.syncJobs(discovered: jobs)
 
         watcher = DirectoryWatcher(directory: jobsDirectory) { [self] in
-            logger.info("Jobs directory changed, re-scanning")
-            let updated = discovery.discover()
-            scheduler.syncJobs(discovered: updated)
+            Task {
+                let updated = self.discovery.discover()
+                await self.scheduler.syncJobs(discovered: updated)
+            }
         }
         watcher?.start()
 
         logger.info("Daemon running, \(jobs.count) job(s) loaded")
 
         while running {
-            scheduler.tick()
-            Thread.sleep(forTimeInterval: 1.0)
+            await scheduler.tick()
+            try? await Task.sleep(for: .seconds(1))
         }
 
         watcher?.stop()
+        scheduler.terminateAllRunning(gracePeriod: 5.0)
         logger.info("Daemon stopped")
     }
 
