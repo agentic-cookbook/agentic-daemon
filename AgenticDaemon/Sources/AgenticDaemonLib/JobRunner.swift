@@ -10,12 +10,17 @@ public struct JobRunner: Sendable {
     public init() {}
 
     public func run(job: JobDescriptor) {
+        guard let process = launch(job: job) else { return }
+        waitForCompletion(process: process, job: job)
+    }
+
+    public func launch(job: JobDescriptor) -> Process? {
         let name = job.name
         let binaryPath = job.binaryURL.path(percentEncoded: false)
 
         guard FileManager.default.fileExists(atPath: binaryPath) else {
             logger.error("No binary for \(name) at \(binaryPath)")
-            return
+            return nil
         }
 
         logger.info("Running \(name)")
@@ -33,9 +38,14 @@ public struct JobRunner: Sendable {
             try process.run()
         } catch {
             logger.error("Failed to launch \(name): \(error)")
-            return
+            return nil
         }
 
+        return process
+    }
+
+    public func waitForCompletion(process: Process, job: JobDescriptor) {
+        let name = job.name
         let timeout = job.config.timeout
         let timedOut = waitWithTimeout(process: process, seconds: timeout)
 
@@ -46,14 +56,18 @@ public struct JobRunner: Sendable {
         }
 
         let exitCode = process.terminationStatus
-        let stdout = readPipe(stdoutPipe)
-        let stderr = readPipe(stderrPipe)
 
-        if !stdout.isEmpty {
-            logger.info("[\(name)] stdout: \(stdout)")
+        if let stdoutPipe = process.standardOutput as? Pipe {
+            let stdout = readPipe(stdoutPipe)
+            if !stdout.isEmpty {
+                logger.info("[\(name)] stdout: \(stdout)")
+            }
         }
-        if !stderr.isEmpty {
-            logger.warning("[\(name)] stderr: \(stderr)")
+        if let stderrPipe = process.standardError as? Pipe {
+            let stderr = readPipe(stderrPipe)
+            if !stderr.isEmpty {
+                logger.warning("[\(name)] stderr: \(stderr)")
+            }
         }
 
         if exitCode == 0 {

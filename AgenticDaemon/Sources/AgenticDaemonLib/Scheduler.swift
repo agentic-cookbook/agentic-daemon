@@ -10,6 +10,7 @@ public final class Scheduler: @unchecked Sendable {
     private let runner = JobRunner()
     private let lock = NSLock()
     private var scheduledJobs: [String: ScheduledJob] = [:]
+    private var runningProcesses: [String: Process] = [:]
 
     public struct ScheduledJob: Sendable {
         public let descriptor: JobDescriptor
@@ -72,7 +73,20 @@ public final class Scheduler: @unchecked Sendable {
         for job in jobsToRun {
             let descriptor = job.descriptor
             DispatchQueue.global(qos: .utility).async { [self] in
-                runner.run(job: descriptor)
+                let process = runner.launch(job: descriptor)
+
+                if let process {
+                    lock.lock()
+                    runningProcesses[descriptor.name] = process
+                    lock.unlock()
+
+                    runner.waitForCompletion(process: process, job: descriptor)
+
+                    lock.lock()
+                    runningProcesses.removeValue(forKey: descriptor.name)
+                    lock.unlock()
+                }
+
                 lock.lock()
                 if var entry = scheduledJobs[descriptor.name] {
                     let interval = backoffInterval(for: entry)
@@ -82,6 +96,35 @@ public final class Scheduler: @unchecked Sendable {
                 }
                 lock.unlock()
             }
+        }
+    }
+
+    public func terminateAllRunning(gracePeriod: TimeInterval) {
+        lock.lock()
+        let processes = Array(runningProcesses.values)
+        lock.unlock()
+
+        guard !processes.isEmpty else { return }
+
+        logger.info("Terminating \(processes.count) running process(es)")
+
+        for process in processes where process.isRunning {
+            process.terminate()
+        }
+
+        let deadline = Date.now.addingTimeInterval(gracePeriod)
+        for process in processes {
+            while process.isRunning && Date.now < deadline {
+                Thread.sleep(forTimeInterval: 0.1)
+            }
+            if process.isRunning {
+                logger.warning("Force-killing process that didn't exit within grace period")
+                kill(process.processIdentifier, SIGKILL)
+            }
+        }
+
+        for process in processes {
+            process.waitUntilExit()
         }
     }
 
