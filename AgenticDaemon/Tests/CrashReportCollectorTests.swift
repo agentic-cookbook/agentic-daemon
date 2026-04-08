@@ -191,6 +191,36 @@ struct CrashReportCollectorTests {
         #expect(reports.isEmpty)
     }
 
+    @Test("PLCrashReporter handler installs without error")
+    func plcrashInstalls() throws {
+        let supportDir = try Self.makeTempDir()
+        defer { try? FileManager.default.removeItem(at: supportDir) }
+
+        let collector = CrashReportCollector(
+            supportDirectory: supportDir,
+            diagnosticReportsDirectory: supportDir.appending(path: "empty"),
+            processName: "agentic-daemon"
+        )
+
+        // Should not throw
+        try collector.installCrashHandler()
+    }
+
+    @Test("PLCrash returns nil when no pending report")
+    func plcrashNoPending() throws {
+        let supportDir = try Self.makeTempDir()
+        defer { try? FileManager.default.removeItem(at: supportDir) }
+
+        let collector = CrashReportCollector(
+            supportDirectory: supportDir,
+            diagnosticReportsDirectory: supportDir.appending(path: "empty"),
+            processName: "agentic-daemon"
+        )
+
+        let report = collector.collectPLCrashReport(crashedJobName: "test-job")
+        #expect(report == nil)
+    }
+
     @Test("Only picks up .ips files, ignores other extensions")
     func ignoresNonIPSFiles() throws {
         let diagDir = try Self.makeTempDir()

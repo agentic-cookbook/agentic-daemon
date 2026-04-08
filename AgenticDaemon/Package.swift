@@ -10,6 +10,9 @@ let package = Package(
     products: [
         .library(name: "AgenticJobKit", type: .dynamic, targets: ["AgenticJobKit"])
     ],
+    dependencies: [
+        .package(url: "git@github.com:microsoft/plcrashreporter.git", from: "1.8.0")
+    ],
     targets: [
         .target(
             name: "AgenticJobKit",
@@ -17,7 +20,10 @@ let package = Package(
         ),
         .target(
             name: "AgenticDaemonLib",
-            dependencies: ["AgenticJobKit"],
+            dependencies: [
+                "AgenticJobKit",
+                .product(name: "CrashReporter", package: "plcrashreporter")
+            ],
             path: "Sources/AgenticDaemonLib"
         ),
         .executableTarget(

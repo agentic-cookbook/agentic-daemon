@@ -1,5 +1,6 @@
 import Foundation
 import os
+import CrashReporter
 
 public struct CrashReportCollector: Sendable {
     private let logger = Logger(
@@ -22,13 +23,83 @@ public struct CrashReportCollector: Sendable {
         self.processName = processName
     }
 
+    /// Install PLCrashReporter's signal/exception handlers.
+    /// Call once at daemon startup, before any jobs run.
+    public func installCrashHandler() throws {
+        let config = PLCrashReporterConfig(
+            signalHandlerType: .mach,
+            symbolicationStrategy: []
+        )
+        guard let reporter = PLCrashReporter(configuration: config) else {
+            logger.error("Failed to create PLCrashReporter")
+            return
+        }
+        try reporter.enableAndReturnError()
+        logger.info("PLCrashReporter handler installed")
+    }
+
     public func collectPendingReports(crashedJobName: String) -> [CrashReport] {
         var reports: [CrashReport] = []
+
+        if let plReport = collectPLCrashReport(crashedJobName: crashedJobName) {
+            reports.append(plReport)
+        }
 
         let ipsReports = collectDiagnosticReports(crashedJobName: crashedJobName)
         reports.append(contentsOf: ipsReports)
 
         return reports
+    }
+
+    /// Check for a pending PLCrashReporter report from a previous crash.
+    /// Returns a parsed CrashReport if one exists, nil otherwise.
+    /// Purges the pending report after collection.
+    public func collectPLCrashReport(crashedJobName: String) -> CrashReport? {
+        let config = PLCrashReporterConfig(
+            signalHandlerType: .mach,
+            symbolicationStrategy: []
+        )
+        guard let reporter = PLCrashReporter(configuration: config) else { return nil }
+
+        guard reporter.hasPendingCrashReport() else { return nil }
+
+        defer { reporter.purgePendingCrashReport() }
+
+        guard let data = try? reporter.loadPendingCrashReportDataAndReturnError(),
+              let plReport = try? PLCrashReport(data: data) else {
+            logger.warning("Failed to load pending PLCrashReporter report")
+            return nil
+        }
+
+        let signal = plReport.signalInfo?.name
+        let exceptionType = plReport.machExceptionInfo != nil
+            ? "EXC_\(plReport.machExceptionInfo.type)"
+            : nil
+
+        var stackFrames: [CrashReport.StackFrame]?
+        if let crashedThread = plReport.threads?.first(where: { ($0 as? PLCrashReportThreadInfo)?.crashed == true }) as? PLCrashReportThreadInfo,
+           let frames = crashedThread.stackFrames as? [PLCrashReportStackFrameInfo] {
+            stackFrames = frames.map { frame in
+                CrashReport.StackFrame(
+                    symbol: frame.symbolInfo?.symbolName,
+                    imageOffset: Int(frame.instructionPointer),
+                    sourceFile: nil,
+                    sourceLine: nil
+                )
+            }
+        }
+
+        logger.info("Collected PLCrashReporter report for job: \(crashedJobName)")
+
+        return CrashReport(
+            jobName: crashedJobName,
+            timestamp: plReport.systemInfo?.timestamp ?? Date.now,
+            signal: signal,
+            exceptionType: exceptionType,
+            faultingThread: nil,
+            stackTrace: stackFrames,
+            source: .plcrash
+        )
     }
 
     func collectDiagnosticReports(crashedJobName: String) -> [CrashReport] {
