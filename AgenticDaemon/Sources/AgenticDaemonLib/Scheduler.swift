@@ -162,11 +162,25 @@ public final class Scheduler: @unchecked Sendable {
     }
 
     private func backoffInterval(for job: ScheduledJob) -> TimeInterval {
-        guard job.descriptor.config.backoffOnFailure,
-              job.consecutiveFailures > 0 else {
-            return job.descriptor.config.intervalSeconds
+        Self.backoffInterval(
+            baseInterval: job.descriptor.config.intervalSeconds,
+            consecutiveFailures: job.consecutiveFailures,
+            backoffEnabled: job.descriptor.config.backoffOnFailure
+        )
+    }
+
+    public static func backoffInterval(
+        baseInterval: TimeInterval,
+        consecutiveFailures: Int,
+        backoffEnabled: Bool
+    ) -> TimeInterval {
+        guard backoffEnabled, consecutiveFailures > 0 else {
+            return baseInterval
         }
-        let backoff = job.descriptor.config.intervalSeconds * Double(1 << min(job.consecutiveFailures, 6))
-        return min(backoff, 3600)
+        let maxBackoff = baseInterval * Double(1 << min(consecutiveFailures, 6))
+        let capped = min(maxBackoff, 3600)
+        // Full jitter: uniform random in [baseInterval, capped]
+        let jittered = Double.random(in: baseInterval...capped)
+        return jittered
     }
 }
