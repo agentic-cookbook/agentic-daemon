@@ -67,4 +67,46 @@ struct JobConfigTests {
         #expect(config.runAtWake == true)
         #expect(config.backoffOnFailure == true)
     }
+
+    // MARK: - Input Validation
+
+    @Test("Negative intervalSeconds is clamped to minimum")
+    func negativeIntervalClamped() {
+        let config = JobConfig(intervalSeconds: -10)
+        #expect(config.intervalSeconds >= 1)
+    }
+
+    @Test("Zero intervalSeconds is clamped to minimum")
+    func zeroIntervalClamped() {
+        let config = JobConfig(intervalSeconds: 0)
+        #expect(config.intervalSeconds >= 1)
+    }
+
+    @Test("Negative timeout is clamped to minimum")
+    func negativeTimeoutClamped() {
+        let config = JobConfig(timeout: -5)
+        #expect(config.timeout >= 1)
+    }
+
+    @Test("Extremely large intervalSeconds is capped")
+    func extremeIntervalCapped() {
+        let config = JobConfig(intervalSeconds: 999_999)
+        #expect(config.intervalSeconds <= 86400)
+    }
+
+    @Test("Extremely large timeout is capped")
+    func extremeTimeoutCapped() {
+        let config = JobConfig(timeout: 999_999)
+        #expect(config.timeout <= 3600)
+    }
+
+    @Test("Decoded negative values are clamped")
+    func decodedNegativesClamped() throws {
+        let json = """
+        {"intervalSeconds": -1, "enabled": true, "timeout": -1, "runAtWake": true, "backoffOnFailure": true}
+        """.data(using: .utf8)!
+        let config = try JSONDecoder().decode(JobConfig.self, from: json)
+        #expect(config.intervalSeconds >= 1)
+        #expect(config.timeout >= 1)
+    }
 }
