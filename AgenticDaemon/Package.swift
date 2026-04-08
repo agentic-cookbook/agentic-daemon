@@ -7,9 +7,17 @@ let package = Package(
     platforms: [
         .macOS(.v14)
     ],
+    products: [
+        .library(name: "AgenticJobKit", type: .dynamic, targets: ["AgenticJobKit"])
+    ],
     targets: [
         .target(
+            name: "AgenticJobKit",
+            path: "Sources/AgenticJobKit"
+        ),
+        .target(
             name: "AgenticDaemonLib",
+            dependencies: ["AgenticJobKit"],
             path: "Sources/AgenticDaemonLib"
         ),
         .executableTarget(
@@ -19,7 +27,7 @@ let package = Package(
         ),
         .testTarget(
             name: "AgenticDaemonTests",
-            dependencies: ["AgenticDaemonLib"],
+            dependencies: ["AgenticDaemonLib", "AgenticJobKit"],
             path: "Tests"
         )
     ]
