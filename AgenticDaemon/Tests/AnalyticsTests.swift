@@ -84,11 +84,29 @@ struct AnalyticsTests {
         #expect(events[0].properties["timeoutSeconds"] as? Double == 30)
     }
 
+    @Test("track records job_crashed event with signal and exception type")
+    func tracksCrashed() {
+        let provider = MockAnalyticsProvider()
+        provider.track(.jobCrashed(
+            name: "bad-plugin",
+            signal: "SIGABRT",
+            exceptionType: "EXC_CRASH"
+        ))
+
+        let events = provider.events
+        #expect(events.count == 1)
+        #expect(events[0].kind == .jobCrashed)
+        #expect(events[0].properties["name"] as? String == "bad-plugin")
+        #expect(events[0].properties["signal"] as? String == "SIGABRT")
+        #expect(events[0].properties["exceptionType"] as? String == "EXC_CRASH")
+    }
+
     @Test("LogAnalyticsProvider does not crash")
     func logProviderDoesNotCrash() {
         let provider = LogAnalyticsProvider()
         provider.track(.jobDiscovered(name: "test"))
         provider.track(.jobCompleted(name: "test", exitCode: 0, durationSeconds: 1.0))
+        provider.track(.jobCrashed(name: "test", signal: "SIGABRT", exceptionType: "EXC_CRASH"))
         // No crash = pass
     }
 

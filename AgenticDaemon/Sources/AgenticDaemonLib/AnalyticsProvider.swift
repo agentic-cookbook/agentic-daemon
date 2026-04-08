@@ -9,6 +9,7 @@ public struct AnalyticsEvent: Sendable {
         case jobCompleted = "job_completed"
         case jobFailed = "job_failed"
         case jobTimedOut = "job_timed_out"
+        case jobCrashed = "job_crashed"
     }
 
     public let kind: Kind
@@ -43,6 +44,13 @@ public struct AnalyticsEvent: Sendable {
 
     public static func jobTimedOut(name: String, timeoutSeconds: Double) -> AnalyticsEvent {
         AnalyticsEvent(kind: .jobTimedOut, properties: ["name": name, "timeoutSeconds": timeoutSeconds])
+    }
+
+    public static func jobCrashed(name: String, signal: String?, exceptionType: String?) -> AnalyticsEvent {
+        var props: [String: any Sendable] = ["name": name]
+        if let signal { props["signal"] = signal }
+        if let exceptionType { props["exceptionType"] = exceptionType }
+        return AnalyticsEvent(kind: .jobCrashed, properties: props)
     }
 }
 
@@ -79,6 +87,10 @@ public struct LogAnalyticsProvider: AnalyticsProvider {
         case .jobTimedOut:
             let timeout = event.properties["timeoutSeconds"] as? Double ?? 0
             logger.warning("[\(event.kind.rawValue)] \(name) after \(timeout, format: .fixed(precision: 0))s")
+        case .jobCrashed:
+            let signal = event.properties["signal"] as? String ?? "unknown"
+            let excType = event.properties["exceptionType"] as? String ?? "unknown"
+            logger.error("[\(event.kind.rawValue)] \(name) signal=\(signal) exception=\(excType)")
         }
     }
 }
