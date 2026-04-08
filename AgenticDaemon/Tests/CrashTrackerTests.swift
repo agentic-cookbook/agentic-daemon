@@ -72,6 +72,27 @@ struct CrashTrackerTests {
         cleanupTempDir(tmpDir)
     }
 
+    @Test("crashedJobName returns name without clearing state")
+    func crashedJobNameDoesNotClear() {
+        let tracker = CrashTracker(stateDir: tmpDir)
+        tracker.markRunning(jobName: "bad-job")
+
+        let tracker2 = CrashTracker(stateDir: tmpDir)
+        #expect(tracker2.crashedJobName() == "bad-job")
+
+        // Should still be readable — not cleared
+        let tracker3 = CrashTracker(stateDir: tmpDir)
+        #expect(tracker3.crashedJobName() == "bad-job")
+        cleanupTempDir(tmpDir)
+    }
+
+    @Test("crashedJobName returns nil on fresh start")
+    func crashedJobNameNilOnFresh() {
+        let tracker = CrashTracker(stateDir: tmpDir)
+        #expect(tracker.crashedJobName() == nil)
+        cleanupTempDir(tmpDir)
+    }
+
     @Test("checkForCrash clears the running state")
     func checkClearsState() {
         let tracker = CrashTracker(stateDir: tmpDir)

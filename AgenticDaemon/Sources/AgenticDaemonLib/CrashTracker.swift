@@ -26,6 +26,19 @@ public struct CrashTracker: Sendable {
         try? FileManager.default.removeItem(at: runningFileURL)
     }
 
+    /// Read the crashed job name without clearing the marker.
+    /// Use this to pass the name to CrashReportCollector before
+    /// calling checkForCrash() which clears it.
+    public func crashedJobName() -> String? {
+        let path = runningFileURL.path(percentEncoded: false)
+        guard FileManager.default.fileExists(atPath: path),
+              let name = try? String(contentsOf: runningFileURL, encoding: .utf8) else {
+            return nil
+        }
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
+    }
+
     /// On startup, check if a running marker exists from a previous crash.
     /// Returns the job name that was running when the daemon died, or nil.
     /// Clears the marker after reading.

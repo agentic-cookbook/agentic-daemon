@@ -11,10 +11,13 @@ public final class DaemonController: @unchecked Sendable {
     private let jobsDirectory: URL
     public let scheduler: Scheduler
     private let discovery: JobDiscovery
+    private let crashTracker: CrashTracker
+    private let crashReportCollector: CrashReportCollector
+    private let analytics: any AnalyticsProvider
     private var watcher: DirectoryWatcher?
     private var running = true
 
-    public init() {
+    public init(analytics: any AnalyticsProvider = LogAnalyticsProvider()) {
         let appSupport = FileManager.default.urls(
             for: .applicationSupportDirectory,
             in: .userDomainMask
@@ -23,14 +26,38 @@ public final class DaemonController: @unchecked Sendable {
         jobsDirectory = supportDirectory.appending(path: "jobs")
         discovery = JobDiscovery(jobsDirectory: jobsDirectory)
         let libDir = supportDirectory.appending(path: "lib")
-        let crashTracker = CrashTracker(stateDir: supportDirectory)
-        scheduler = Scheduler(buildDir: libDir, crashTracker: crashTracker)
+        crashTracker = CrashTracker(stateDir: supportDirectory)
+        crashReportCollector = CrashReportCollector(supportDirectory: supportDirectory)
+        self.analytics = analytics
+        scheduler = Scheduler(buildDir: libDir, crashTracker: crashTracker, analytics: analytics)
     }
 
     public func run() async {
         logger.info("Starting agentic-daemon")
 
         createDirectories()
+
+        // Install crash handler for future crashes
+        do {
+            try crashReportCollector.installCrashHandler()
+        } catch {
+            logger.error("Failed to install crash handler: \(error)")
+        }
+
+        // Collect crash reports from previous crash (before recoverFromCrash clears state)
+        if let crashedJob = crashTracker.crashedJobName() {
+            let reports = crashReportCollector.collectPendingReports(crashedJobName: crashedJob)
+            for report in reports {
+                analytics.track(.jobCrashed(
+                    name: report.jobName,
+                    signal: report.signal,
+                    exceptionType: report.exceptionType
+                ))
+            }
+            if reports.isEmpty {
+                logger.info("Crash detected for \(crashedJob) but no crash reports found")
+            }
+        }
 
         await scheduler.recoverFromCrash()
 
@@ -63,7 +90,7 @@ public final class DaemonController: @unchecked Sendable {
 
     private func createDirectories() {
         let fm = FileManager.default
-        for dir in [jobsDirectory, supportDirectory.appending(path: "lib")] {
+        for dir in [jobsDirectory, supportDirectory.appending(path: "lib"), supportDirectory.appending(path: "crashes")] {
             let path = dir.path(percentEncoded: false)
             if !fm.fileExists(atPath: path) {
                 do {
