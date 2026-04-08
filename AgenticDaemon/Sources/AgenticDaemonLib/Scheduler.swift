@@ -1,5 +1,6 @@
 import Foundation
 import os
+import AgenticJobKit
 
 public actor Scheduler {
     private let logger = Logger(
@@ -7,11 +8,10 @@ public actor Scheduler {
         category: "Scheduler"
     )
     private let compiler: SwiftCompiler
-    private let runner = JobRunner()
+    private let loader = JobLoader()
     private let analytics: any AnalyticsProvider
+    private let crashTracker: CrashTracker
     private var scheduledJobs: [String: ScheduledJob] = [:]
-    private nonisolated(unsafe) var runningProcesses: [String: Process] = [:]
-    private let processLock = NSLock()
 
     public struct ScheduledJob: Sendable {
         public let descriptor: JobDescriptor
@@ -20,8 +20,13 @@ public actor Scheduler {
         public var isRunning: Bool = false
     }
 
-    public init(buildDir: URL, analytics: any AnalyticsProvider = LogAnalyticsProvider()) {
+    public init(
+        buildDir: URL,
+        crashTracker: CrashTracker? = nil,
+        analytics: any AnalyticsProvider = LogAnalyticsProvider()
+    ) {
         self.compiler = SwiftCompiler(buildDir: buildDir)
+        self.crashTracker = crashTracker ?? CrashTracker(stateDir: buildDir)
         self.analytics = analytics
     }
 
@@ -33,6 +38,15 @@ public actor Scheduler {
             guard job.config.enabled else {
                 logger.info("Skipping disabled job: \(job.name)")
                 continue
+            }
+            if crashTracker.isBlacklisted(jobName: job.name) {
+                if compiler.needsCompile(job: job) {
+                    logger.info("Source changed for blacklisted \(job.name), clearing blacklist")
+                    crashTracker.clearBlacklist(jobName: job.name)
+                } else {
+                    logger.warning("Skipping blacklisted job: \(job.name)")
+                    continue
+                }
             }
             analytics.track(.jobDiscovered(name: job.name))
             compileIfNeeded(job: job)
@@ -52,6 +66,9 @@ public actor Scheduler {
             if compiler.needsCompile(job: job) {
                 logger.info("Source changed for \(job.name), recompiling")
                 compileIfNeeded(job: job)
+                if crashTracker.isBlacklisted(jobName: job.name) {
+                    crashTracker.clearBlacklist(jobName: job.name)
+                }
             }
         }
     }
@@ -69,74 +86,87 @@ public actor Scheduler {
 
         for job in jobsToRun {
             let descriptor = job.descriptor
+            let failures = job.consecutiveFailures
             Task.detached(priority: .utility) { [self] in
-                self.analytics.track(.jobStarted(name: descriptor.name))
-                let startTime = Date.now
-                let process = runner.launch(job: descriptor)
+                await self.runJob(descriptor: descriptor, consecutiveFailures: failures)
+            }
+        }
+    }
 
-                if let process {
-                    self.processLock.withLock {
-                        self.runningProcesses[descriptor.name] = process
-                    }
+    private func runJob(descriptor: JobDescriptor, consecutiveFailures: Int) async {
+        let name = descriptor.name
+        analytics.track(.jobStarted(name: name))
+        crashTracker.markRunning(jobName: name)
+        let startTime = Date.now
 
-                    self.runner.waitForCompletion(process: process, job: descriptor)
+        let request = JobRequest(
+            jobName: name,
+            jobDirectory: descriptor.directory,
+            jobsDirectory: descriptor.directory.deletingLastPathComponent(),
+            runReason: .scheduled,
+            consecutiveFailures: consecutiveFailures
+        )
 
-                    _ = self.processLock.withLock {
-                        self.runningProcesses.removeValue(forKey: descriptor.name)
-                    }
+        do {
+            let response = try loader.load(descriptor: descriptor, request: request)
+            let duration = Date.now.timeIntervalSince(startTime)
 
-                    let duration = Date.now.timeIntervalSince(startTime)
-                    let exitCode = process.terminationStatus
+            crashTracker.clearRunning()
+            analytics.track(.jobCompleted(name: name, exitCode: 0, durationSeconds: duration))
 
-                    if !process.isRunning && exitCode == 0 {
-                        self.analytics.track(.jobCompleted(name: descriptor.name, exitCode: exitCode, durationSeconds: duration))
-                    } else if duration >= descriptor.config.timeout {
-                        self.analytics.track(.jobTimedOut(name: descriptor.name, timeoutSeconds: descriptor.config.timeout))
-                    } else {
-                        self.analytics.track(.jobFailed(name: descriptor.name, exitCode: exitCode, durationSeconds: duration))
-                    }
+            await handleResponse(response, for: name)
+            await markJobCompleted(name: name, failed: false)
+
+        } catch {
+            let duration = Date.now.timeIntervalSince(startTime)
+            crashTracker.clearRunning()
+            analytics.track(.jobFailed(name: name, exitCode: 1, durationSeconds: duration))
+            logger.error("Job \(name) failed: \(error)")
+
+            await markJobCompleted(name: name, failed: true)
+        }
+    }
+
+    private func handleResponse(_ response: JobResponse, for name: String) {
+        if let enabled = response.enabled, !enabled {
+            scheduledJobs.removeValue(forKey: name)
+            logger.info("Job \(name) disabled itself")
+            return
+        }
+
+        if let triggers = response.trigger {
+            for triggerName in triggers {
+                if scheduledJobs[triggerName] != nil {
+                    scheduledJobs[triggerName]?.nextRun = Date.now
+                    logger.info("Job \(name) triggered \(triggerName)")
+                } else {
+                    logger.warning("Job \(name) tried to trigger unknown job: \(triggerName)")
                 }
-
-                await self.markJobCompleted(name: descriptor.name)
             }
         }
     }
 
-    private func markJobCompleted(name: String) {
-        if var entry = scheduledJobs[name] {
-            let interval = backoffInterval(for: entry)
-            entry.nextRun = Date.now.addingTimeInterval(interval)
-            entry.isRunning = false
-            scheduledJobs[name] = entry
+    private func markJobCompleted(name: String, failed: Bool) {
+        guard var entry = scheduledJobs[name] else { return }
+
+        if failed {
+            entry.consecutiveFailures += 1
+        } else {
+            entry.consecutiveFailures = 0
         }
+
+        // Check if job's response set a custom interval
+        let interval = backoffInterval(for: entry)
+        entry.nextRun = Date.now.addingTimeInterval(interval)
+        entry.isRunning = false
+        scheduledJobs[name] = entry
     }
 
-    public nonisolated func terminateAllRunning(gracePeriod: TimeInterval) {
-        processLock.lock()
-        let processes = Array(runningProcesses.values)
-        processLock.unlock()
-
-        guard !processes.isEmpty else { return }
-
-        logger.info("Terminating \(processes.count) running process(es)")
-
-        for process in processes where process.isRunning {
-            process.terminate()
-        }
-
-        let deadline = Date.now.addingTimeInterval(gracePeriod)
-        for process in processes {
-            while process.isRunning && Date.now < deadline {
-                Thread.sleep(forTimeInterval: 0.1)
-            }
-            if process.isRunning {
-                logger.warning("Force-killing process that didn't exit within grace period")
-                kill(process.processIdentifier, SIGKILL)
-            }
-        }
-
-        for process in processes {
-            process.waitUntilExit()
+    /// Check for crash from a previous daemon run and blacklist the culprit.
+    public func recoverFromCrash() {
+        if let crashedJob = crashTracker.checkForCrash() {
+            crashTracker.blacklist(jobName: crashedJob)
+            logger.error("Previous daemon crash caused by job: \(crashedJob) — blacklisted")
         }
     }
 

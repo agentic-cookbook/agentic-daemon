@@ -23,13 +23,16 @@ public final class DaemonController: @unchecked Sendable {
         jobsDirectory = supportDirectory.appending(path: "jobs")
         discovery = JobDiscovery(jobsDirectory: jobsDirectory)
         let libDir = supportDirectory.appending(path: "lib")
-        scheduler = Scheduler(buildDir: libDir)
+        let crashTracker = CrashTracker(stateDir: supportDirectory)
+        scheduler = Scheduler(buildDir: libDir, crashTracker: crashTracker)
     }
 
     public func run() async {
         logger.info("Starting agentic-daemon")
 
         createDirectories()
+
+        await scheduler.recoverFromCrash()
 
         let jobs = discovery.discover()
         await scheduler.syncJobs(discovered: jobs)
@@ -50,7 +53,6 @@ public final class DaemonController: @unchecked Sendable {
         }
 
         watcher?.stop()
-        scheduler.terminateAllRunning(gracePeriod: 5.0)
         logger.info("Daemon stopped")
     }
 
@@ -61,13 +63,15 @@ public final class DaemonController: @unchecked Sendable {
 
     private func createDirectories() {
         let fm = FileManager.default
-        let jobsPath = jobsDirectory.path(percentEncoded: false)
-        if !fm.fileExists(atPath: jobsPath) {
-            do {
-                try fm.createDirectory(at: jobsDirectory, withIntermediateDirectories: true)
-                logger.info("Created jobs directory: \(jobsPath)")
-            } catch {
-                logger.error("Failed to create jobs directory: \(error)")
+        for dir in [jobsDirectory, supportDirectory.appending(path: "lib")] {
+            let path = dir.path(percentEncoded: false)
+            if !fm.fileExists(atPath: path) {
+                do {
+                    try fm.createDirectory(at: dir, withIntermediateDirectories: true)
+                    logger.info("Created directory: \(path)")
+                } catch {
+                    logger.error("Failed to create directory: \(error)")
+                }
             }
         }
     }
