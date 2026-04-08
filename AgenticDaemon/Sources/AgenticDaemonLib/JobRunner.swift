@@ -1,13 +1,15 @@
 import Foundation
 import os
 
-struct JobRunner: Sendable {
+public struct JobRunner: Sendable {
     private let logger = Logger(
         subsystem: "com.agentic-cookbook.daemon",
         category: "JobRunner"
     )
 
-    func run(job: JobDescriptor) {
+    public init() {}
+
+    public func run(job: JobDescriptor) {
         let name = job.name
         let binaryPath = job.binaryURL.path(percentEncoded: false)
 

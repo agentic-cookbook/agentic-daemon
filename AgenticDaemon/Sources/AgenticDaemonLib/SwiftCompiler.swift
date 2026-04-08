@@ -1,13 +1,15 @@
 import Foundation
 import os
 
-struct SwiftCompiler: Sendable {
+public struct SwiftCompiler: Sendable {
     private let logger = Logger(
         subsystem: "com.agentic-cookbook.daemon",
         category: "SwiftCompiler"
     )
 
-    func needsCompile(job: JobDescriptor) -> Bool {
+    public init() {}
+
+    public func needsCompile(job: JobDescriptor) -> Bool {
         let fm = FileManager.default
         let binaryPath = job.binaryURL.path(percentEncoded: false)
 
@@ -23,7 +25,7 @@ struct SwiftCompiler: Sendable {
         return sourceDate > binaryDate
     }
 
-    func compile(job: JobDescriptor) throws {
+    public func compile(job: JobDescriptor) throws {
         let name = job.name
         logger.info("Compiling \(name)...")
 
@@ -57,6 +59,6 @@ struct SwiftCompiler: Sendable {
     }
 }
 
-enum CompileError: Error {
+public enum CompileError: Error {
     case failed(job: String, output: String)
 }

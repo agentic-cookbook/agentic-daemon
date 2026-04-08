@@ -1,7 +1,7 @@
 import Foundation
 import os
 
-final class DaemonController: @unchecked Sendable {
+public final class DaemonController: @unchecked Sendable {
     private let logger = Logger(
         subsystem: "com.agentic-cookbook.daemon",
         category: "DaemonController"
@@ -14,7 +14,7 @@ final class DaemonController: @unchecked Sendable {
     private var watcher: DirectoryWatcher?
     private var running = true
 
-    init() {
+    public init() {
         let appSupport = FileManager.default.urls(
             for: .applicationSupportDirectory,
             in: .userDomainMask
@@ -24,7 +24,7 @@ final class DaemonController: @unchecked Sendable {
         discovery = JobDiscovery(jobsDirectory: jobsDirectory)
     }
 
-    func run() {
+    public func run() {
         logger.info("Starting agentic-daemon")
 
         createDirectories()
@@ -50,7 +50,7 @@ final class DaemonController: @unchecked Sendable {
         logger.info("Daemon stopped")
     }
 
-    func shutdown() {
+    public func shutdown() {
         logger.info("Shutdown requested")
         running = false
     }

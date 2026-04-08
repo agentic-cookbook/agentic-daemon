@@ -1,7 +1,7 @@
 import Foundation
 import os
 
-final class Scheduler: @unchecked Sendable {
+public final class Scheduler: @unchecked Sendable {
     private let logger = Logger(
         subsystem: "com.agentic-cookbook.daemon",
         category: "Scheduler"
@@ -11,14 +11,16 @@ final class Scheduler: @unchecked Sendable {
     private let lock = NSLock()
     private var scheduledJobs: [String: ScheduledJob] = [:]
 
-    struct ScheduledJob {
-        let descriptor: JobDescriptor
-        var nextRun: Date
-        var consecutiveFailures: Int = 0
-        var isRunning: Bool = false
+    public struct ScheduledJob: Sendable {
+        public let descriptor: JobDescriptor
+        public var nextRun: Date
+        public var consecutiveFailures: Int = 0
+        public var isRunning: Bool = false
     }
 
-    func syncJobs(discovered: [JobDescriptor]) {
+    public init() {}
+
+    public func syncJobs(discovered: [JobDescriptor]) {
         lock.lock()
         defer { lock.unlock() }
 
@@ -54,7 +56,7 @@ final class Scheduler: @unchecked Sendable {
         }
     }
 
-    func tick() {
+    public func tick() {
         lock.lock()
         let now = Date.now
         var jobsToRun: [ScheduledJob] = []
@@ -83,10 +85,28 @@ final class Scheduler: @unchecked Sendable {
         }
     }
 
-    var isEmpty: Bool {
+    public var isEmpty: Bool {
         lock.lock()
         defer { lock.unlock() }
         return scheduledJobs.isEmpty
+    }
+
+    public var jobCount: Int {
+        lock.lock()
+        defer { lock.unlock() }
+        return scheduledJobs.count
+    }
+
+    public var jobNames: Set<String> {
+        lock.lock()
+        defer { lock.unlock() }
+        return Set(scheduledJobs.keys)
+    }
+
+    public func job(named name: String) -> ScheduledJob? {
+        lock.lock()
+        defer { lock.unlock() }
+        return scheduledJobs[name]
     }
 
     private func compileIfNeeded(job: JobDescriptor) {

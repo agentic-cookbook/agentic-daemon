@@ -1,5 +1,6 @@
 import Foundation
 import os
+import AgenticDaemonLib
 
 let logger = Logger(
     subsystem: "com.agentic-cookbook.daemon",

@@ -8,9 +8,19 @@ let package = Package(
         .macOS(.v14)
     ],
     targets: [
+        .target(
+            name: "AgenticDaemonLib",
+            path: "Sources/AgenticDaemonLib"
+        ),
         .executableTarget(
             name: "agentic-daemon",
-            path: "Sources"
+            dependencies: ["AgenticDaemonLib"],
+            path: "Sources/CLI"
+        ),
+        .testTarget(
+            name: "AgenticDaemonTests",
+            dependencies: ["AgenticDaemonLib"],
+            path: "Tests"
         )
     ]
 )

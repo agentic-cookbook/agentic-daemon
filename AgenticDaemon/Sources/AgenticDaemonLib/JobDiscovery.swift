@@ -1,18 +1,18 @@
 import Foundation
 import os
 
-struct JobDiscovery: Sendable {
+public struct JobDiscovery: Sendable {
     private let logger = Logger(
         subsystem: "com.agentic-cookbook.daemon",
         category: "JobDiscovery"
     )
     private let jobsDirectory: URL
 
-    init(jobsDirectory: URL) {
+    public init(jobsDirectory: URL) {
         self.jobsDirectory = jobsDirectory
     }
 
-    func discover() -> [JobDescriptor] {
+    public func discover() -> [JobDescriptor] {
         let fm = FileManager.default
         guard let entries = try? fm.contentsOfDirectory(
             at: jobsDirectory,

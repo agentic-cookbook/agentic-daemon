@@ -1,13 +1,13 @@
 import Foundation
 
-struct JobConfig: Codable, Sendable {
-    let intervalSeconds: TimeInterval
-    let enabled: Bool
-    let timeout: TimeInterval
-    let runAtWake: Bool
-    let backoffOnFailure: Bool
+public struct JobConfig: Codable, Sendable {
+    public let intervalSeconds: TimeInterval
+    public let enabled: Bool
+    public let timeout: TimeInterval
+    public let runAtWake: Bool
+    public let backoffOnFailure: Bool
 
-    init(
+    public init(
         intervalSeconds: TimeInterval = 60,
         enabled: Bool = true,
         timeout: TimeInterval = 30,
@@ -21,5 +21,5 @@ struct JobConfig: Codable, Sendable {
         self.backoffOnFailure = backoffOnFailure
     }
 
-    static let `default` = JobConfig()
+    public static let `default` = JobConfig()
 }
