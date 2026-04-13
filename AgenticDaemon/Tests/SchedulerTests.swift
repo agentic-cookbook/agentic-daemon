@@ -69,4 +69,33 @@ struct SchedulerTests {
         #expect(count == 1)
         cleanupTempDir(tmpDir)
     }
+
+    @Test("triggerJob sets nextRun to now for a known job")
+    func triggerJobSetsNextRunToNow() async throws {
+        let tmpDir = makeTempDir(prefix: "sched-trigger")
+        createJobDir(in: tmpDir, name: "job-trigger", swiftSource: validJobSource())
+        let config = JobConfig(intervalSeconds: 3600)
+        let descriptor = makeDescriptor(in: tmpDir, name: "job-trigger", config: config)
+        let scheduler = Scheduler(buildDir: findBuildDir())
+
+        await scheduler.syncJobs(discovered: [descriptor])
+
+        try await Task.sleep(for: .milliseconds(20))
+
+        await scheduler.triggerJob(name: "job-trigger")
+
+        let job = await scheduler.job(named: "job-trigger")
+        let nextRun = try #require(job?.nextRun)
+        #expect(nextRun.timeIntervalSinceNow <= 0.1)
+
+        cleanupTempDir(tmpDir)
+    }
+
+    @Test("triggerJob is a no-op for unknown job")
+    func triggerJobUnknownIsNoOp() async {
+        let scheduler = Scheduler(buildDir: findBuildDir())
+        await scheduler.triggerJob(name: "does-not-exist")
+        let empty = await scheduler.isEmpty
+        #expect(empty)
+    }
 }

@@ -186,6 +186,11 @@ public actor Scheduler {
         scheduledJobs[name]
     }
 
+    public func triggerJob(name: String) {
+        guard scheduledJobs[name] != nil else { return }
+        scheduledJobs[name]?.nextRun = Date.now
+    }
+
     private func compileIfNeeded(job: JobDescriptor) {
         guard compiler.needsCompile(job: job) else { return }
         let start = Date.now
