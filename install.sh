@@ -8,11 +8,10 @@ PLIST_SRC="$(cd "$(dirname "$0")" && pwd)/${LABEL}.plist"
 PLIST_DST="$HOME/Library/LaunchAgents/${LABEL}.plist"
 PKG_DIR="$(cd "$(dirname "$0")" && pwd)/AgenticDaemon"
 
-echo "Building agentic-daemon..."
-cd "$PKG_DIR"
-swift build -c release
+echo "Building agentic-daemon (release)..."
+swift build -c release --package-path "$PKG_DIR"
 
-BIN_PATH=$(swift build -c release --show-bin-path)
+BIN_PATH=$(swift build -c release --show-bin-path --package-path "$PKG_DIR")
 BINARY="$BIN_PATH/agentic-daemon"
 
 echo "Installing..."
@@ -31,21 +30,45 @@ for ext in swiftmodule swiftdoc abi.json swiftsourceinfo; do
     [ -f "$src" ] && cp "$src" "$SUPPORT/lib/Modules/"
 done
 
+# Install management CLI
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+cp "$SCRIPT_DIR/agd" "$SUPPORT/agd"
+chmod 755 "$SUPPORT/agd"
+
+# Symlink management CLI to /usr/local/bin for convenient access
+if ! ln -sf "$SUPPORT/agd" /usr/local/bin/agd 2>/dev/null; then
+    echo ""
+    read -r -p "Need sudo to symlink agd to /usr/local/bin. Create symlink? [Y/n] " yn
+    if [[ ! "$yn" =~ ^[Nn]$ ]]; then
+        sudo ln -sf "$SUPPORT/agd" /usr/local/bin/agd
+    else
+        echo "Note: add $SUPPORT to PATH to use agd"
+    fi
+fi
+
 # Expand $HOME in plist and install
 sed "s|\${HOME}|$HOME|g" "$PLIST_SRC" > "$PLIST_DST"
 
-# Unload if already registered
+# Unload any existing registration first
 launchctl bootout "gui/$(id -u)/${LABEL}" 2>/dev/null || true
+sleep 1
 
-# Load and start
-launchctl bootstrap "gui/$(id -u)" "$PLIST_DST"
+# Load and start the daemon
+if ! launchctl bootstrap "gui/$(id -u)" "$PLIST_DST"; then
+    echo "Bootstrap failed, retrying after extended wait..."
+    sleep 2
+    launchctl bootout "gui/$(id -u)/${LABEL}" 2>/dev/null || true
+    launchctl bootstrap "gui/$(id -u)" "$PLIST_DST"
+fi
 
 echo ""
 echo "Installed: $LABEL"
-echo "  Binary:  $SUPPORT/agentic-daemon"
+echo "  Daemon:  $SUPPORT/agentic-daemon"
 echo "  JobKit:  $SUPPORT/lib/libAgenticJobKit.dylib"
 echo "  Jobs:    $SUPPORT/jobs/"
 echo "  Logs:    $LOGS/"
 echo "  Plist:   $PLIST_DST"
 echo ""
-launchctl list "$LABEL"
+echo "Verify:"
+echo "  launchctl list | grep agentic-cookbook.daemon"
+echo "  agd status"

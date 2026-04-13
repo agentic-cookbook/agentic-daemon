@@ -1,0 +1,299 @@
+#!/usr/bin/env python3
+"""
+agd — agentic-daemon management CLI
+
+Commands:
+    agd               # same as 'agd status'
+    agd status        # daemon health + job summary
+    agd jobs          # per-job details (next run, failures, running)
+    agd crashes       # recent crash reports
+    agd logs          # tail stdout + stderr logs
+
+Install: symlinked to /usr/local/bin/agd by install.sh
+"""
+
+import json
+import os
+import subprocess
+import sys
+from datetime import datetime, timezone
+from pathlib import Path
+
+LABEL = "com.agentic-cookbook.daemon"
+SUPPORT = Path.home() / "Library" / "Application Support" / LABEL
+LOGS = Path.home() / "Library" / "Logs" / LABEL
+STATUS_FILE = SUPPORT / "status.json"
+CRASHES_DIR = SUPPORT / "crashes"
+BLACKLIST_FILE = SUPPORT / "blacklist.json"
+
+
+# ── helpers ──────────────────────────────────────────────────────────────────
+
+def _bold(s: str) -> str:
+    return f"\033[1m{s}\033[0m"
+
+def _dim(s: str) -> str:
+    return f"\033[2m{s}\033[0m"
+
+def _green(s: str) -> str:
+    return f"\033[32m{s}\033[0m"
+
+def _yellow(s: str) -> str:
+    return f"\033[33m{s}\033[0m"
+
+def _red(s: str) -> str:
+    return f"\033[31m{s}\033[0m"
+
+def _no_color() -> bool:
+    return not sys.stdout.isatty() or os.environ.get("NO_COLOR")
+
+def _fmt(fn, s: str) -> str:
+    return s if _no_color() else fn(s)
+
+def _uptime_str(seconds: float) -> str:
+    s = int(seconds)
+    if s < 60:
+        return f"{s}s"
+    if s < 3600:
+        return f"{s // 60}m {s % 60}s"
+    h = s // 3600
+    m = (s % 3600) // 60
+    return f"{h}h {m}m"
+
+def _rel_time(iso: str) -> str:
+    """Return a human-friendly relative time string for an ISO8601 timestamp."""
+    try:
+        dt = datetime.fromisoformat(iso.replace("Z", "+00:00"))
+        delta = (datetime.now(timezone.utc) - dt).total_seconds()
+        if delta < 0:
+            return "in the future"
+        if delta < 60:
+            return f"{int(delta)}s ago"
+        if delta < 3600:
+            return f"{int(delta // 60)}m ago"
+        if delta < 86400:
+            return f"{int(delta // 3600)}h ago"
+        return f"{int(delta // 86400)}d ago"
+    except Exception:
+        return iso
+
+def _daemon_pid() -> str:
+    """Return PID string from launchctl, or empty string if not running."""
+    result = subprocess.run(
+        ["launchctl", "list", LABEL], capture_output=True, text=True
+    )
+    if result.returncode != 0:
+        return ""
+    for line in result.stdout.splitlines():
+        if '"PID"' in line:
+            return line.split()[-1].rstrip(",").strip('"')
+    return ""
+
+def _load_status() -> dict | None:
+    if not STATUS_FILE.exists():
+        return None
+    try:
+        return json.loads(STATUS_FILE.read_text())
+    except Exception:
+        return None
+
+def _load_blacklist() -> list[str]:
+    if not BLACKLIST_FILE.exists():
+        return []
+    try:
+        data = json.loads(BLACKLIST_FILE.read_text())
+        return data if isinstance(data, list) else []
+    except Exception:
+        return []
+
+def _load_crashes() -> list[dict]:
+    if not CRASHES_DIR.exists():
+        return []
+    reports = []
+    for f in sorted(CRASHES_DIR.glob("crash-*.json"), reverse=True):
+        try:
+            reports.append(json.loads(f.read_text()))
+        except Exception:
+            pass
+    return reports
+
+
+# ── commands ─────────────────────────────────────────────────────────────────
+
+def cmd_status() -> None:
+    pid = _daemon_pid()
+    status = _load_status()
+    blacklist = _load_blacklist()
+
+    # Daemon health line
+    if pid:
+        label = _fmt(_green, "running")
+        pid_str = _fmt(_dim, f"PID {pid}")
+    else:
+        label = _fmt(_red, "not running")
+        pid_str = ""
+
+    parts = [_fmt(_bold, LABEL), label]
+    if pid_str:
+        parts.append(pid_str)
+    print("  ".join(parts))
+
+    if status:
+        uptime = _uptime_str(status.get("uptimeSeconds", 0))
+        job_count = status.get("jobCount", 0)
+        last_tick = _rel_time(status.get("lastTick", ""))
+        print(f"  uptime: {uptime}  jobs: {job_count}  last tick: {last_tick}")
+    else:
+        if not pid:
+            print()
+            print("  Daemon is not running. Start with:")
+            print(f"    launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/{LABEL}.plist")
+        else:
+            print(_fmt(_dim, "  (status.json not yet written — daemon may be starting)"))
+
+    if blacklist:
+        print()
+        print(_fmt(_yellow, f"  Blacklisted jobs ({len(blacklist)}):") + " " + ", ".join(blacklist))
+        print(_fmt(_dim, "  Blacklisted jobs will resume when their source changes."))
+
+    crashes = _load_crashes()
+    if crashes:
+        recent = crashes[:3]
+        print()
+        print(_fmt(_yellow, f"  Recent crashes ({len(crashes)} total):"))
+        for c in recent:
+            ts = _rel_time(c.get("timestamp", ""))
+            job = c.get("jobName", "?")
+            sig = c.get("signal") or c.get("exceptionType") or "unknown"
+            print(f"    {job}  {sig}  {_fmt(_dim, ts)}")
+        if len(crashes) > 3:
+            print(_fmt(_dim, f"    … and {len(crashes) - 3} more. Run 'agd crashes' for full list."))
+
+    print()
+
+
+def cmd_jobs() -> None:
+    status = _load_status()
+    blacklist = _load_blacklist()
+
+    if not status:
+        pid = _daemon_pid()
+        if not pid:
+            print(_fmt(_red, "Daemon is not running."))
+        else:
+            print(_fmt(_dim, "status.json not yet available — daemon may be starting."))
+        return
+
+    jobs = status.get("jobs", [])
+    if not jobs:
+        print("No jobs discovered.")
+        print(_fmt(_dim, f"  Drop a job.swift into {SUPPORT / 'jobs'}/"))
+        return
+
+    print(_fmt(_bold, f"{'NAME':<24} {'NEXT RUN':<16} {'FAILURES':<10} {'STATE'}"))
+    print("─" * 64)
+    for job in sorted(jobs, key=lambda j: j["name"]):
+        name = job["name"]
+        next_run = _rel_time(job.get("nextRun", ""))
+        failures = job.get("consecutiveFailures", 0)
+        is_running = job.get("isRunning", False)
+        is_blacklisted = name in blacklist
+
+        if is_blacklisted:
+            state = _fmt(_red, "blacklisted")
+        elif is_running:
+            state = _fmt(_green, "running")
+        elif failures > 0:
+            state = _fmt(_yellow, f"backing off")
+        else:
+            state = _fmt(_dim, "idle")
+
+        fail_str = _fmt(_yellow, str(failures)) if failures > 0 else str(failures)
+        print(f"  {name:<22} {next_run:<16} {fail_str:<10} {state}")
+    print()
+
+
+def cmd_crashes() -> None:
+    crashes = _load_crashes()
+    if not crashes:
+        print("No crash reports found.")
+        return
+
+    print(_fmt(_bold, f"{'TIME':<16} {'JOB':<24} {'SIGNAL/EXCEPTION':<20} SOURCE"))
+    print("─" * 72)
+    for c in crashes:
+        ts = _rel_time(c.get("timestamp", ""))
+        job = c.get("jobName", "?")
+        sig = c.get("signal") or c.get("exceptionType") or "—"
+        source = c.get("source", "?")
+        print(f"  {ts:<14} {job:<24} {sig:<20} {source}")
+
+        frames = c.get("stackTrace") or []
+        for frame in frames[:3]:
+            symbol = frame.get("symbol") or "?"
+            src = frame.get("sourceFile")
+            line = frame.get("sourceLine")
+            loc = f" ({src}:{line})" if src and line else ""
+            print(_fmt(_dim, f"    {symbol}{loc}"))
+        if len(frames) > 3:
+            print(_fmt(_dim, f"    … {len(frames) - 3} more frames"))
+        print()
+
+
+def cmd_logs() -> None:
+    stdout_log = LOGS / "stdout.log"
+    stderr_log = LOGS / "stderr.log"
+
+    missing = [str(p) for p in (stdout_log, stderr_log) if not p.exists()]
+    if missing:
+        print(_fmt(_yellow, "Log files not yet created:"))
+        for m in missing:
+            print(f"  {m}")
+        if len(missing) == 2:
+            return
+
+    print(_fmt(_dim, f"Tailing {LOGS}/ — Ctrl-C to stop"))
+    print()
+    try:
+        subprocess.run(["tail", "-F", str(stdout_log), str(stderr_log)])
+    except KeyboardInterrupt:
+        pass
+
+
+# ── dispatch ─────────────────────────────────────────────────────────────────
+
+COMMANDS = {
+    "status": cmd_status,
+    "jobs": cmd_jobs,
+    "crashes": cmd_crashes,
+    "logs": cmd_logs,
+}
+
+def usage() -> None:
+    print("Usage: agd [status|jobs|crashes|logs]")
+    print()
+    print("  status   Daemon health and job summary (default)")
+    print("  jobs     Per-job details: next run, failures, state")
+    print("  crashes  Recent crash reports")
+    print("  logs     Tail stdout and stderr logs")
+    sys.exit(1)
+
+
+def main() -> None:
+    args = sys.argv[1:]
+    if not args:
+        cmd_status()
+        return
+
+    cmd = args[0]
+    if cmd in ("-h", "--help", "help"):
+        usage()
+    if cmd not in COMMANDS:
+        print(f"agd: unknown command '{cmd}'", file=sys.stderr)
+        usage()
+
+    COMMANDS[cmd]()
+
+
+if __name__ == "__main__":
+    main()
