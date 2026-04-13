@@ -17,6 +17,7 @@ public final class DaemonController: @unchecked Sendable {
     private let analytics: any AnalyticsProvider
     private var watcher: DirectoryWatcher?
     private var running = true
+    private let startDate = Date.now
 
     public init(analytics: any AnalyticsProvider = LogAnalyticsProvider()) {
         let appSupport = FileManager.default.urls(
@@ -39,14 +40,12 @@ public final class DaemonController: @unchecked Sendable {
 
         createDirectories()
 
-        // Install crash handler for future crashes
         do {
             try crashReportCollector.installCrashHandler()
         } catch {
             logger.error("Failed to install crash handler: \(error)")
         }
 
-        // Collect crash reports from previous crash (before recoverFromCrash clears state)
         if let crashedJob = crashTracker.crashedJobName() {
             let reports = crashReportCollector.collectPendingReports(crashedJobName: crashedJob)
             for report in reports {
@@ -66,9 +65,7 @@ public final class DaemonController: @unchecked Sendable {
             }
         }
 
-        // Clean up old crash reports
         crashReportStore.cleanup(retentionDays: 30)
-
         await scheduler.recoverFromCrash()
 
         let jobs = discovery.discover()
@@ -81,6 +78,10 @@ public final class DaemonController: @unchecked Sendable {
             }
         }
         watcher?.start()
+
+        // Start XPC server so the menu bar companion can connect
+        let xpcServer = XPCServer(handler: makeXPCHandler())
+        xpcServer.start()
 
         logger.info("Daemon running, \(jobs.count) job(s) loaded")
 
@@ -97,6 +98,108 @@ public final class DaemonController: @unchecked Sendable {
         logger.info("Shutdown requested")
         running = false
     }
+
+    // MARK: - XPC
+
+    private func makeXPCHandler() -> XPCHandler {
+        let captured = (
+            scheduler: scheduler,
+            discovery: discovery,
+            crashTracker: crashTracker,
+            crashReportStore: crashReportStore,
+            jobsDirectory: jobsDirectory,
+            startDate: startDate
+        )
+
+        return XPCHandler(dependencies: .init(
+            getStatus: {
+                let names = await captured.scheduler.jobNames
+                var jobs: [DaemonStatus.JobStatus] = []
+                for name in names.sorted() {
+                    guard let sj = await captured.scheduler.job(named: name) else { continue }
+                    jobs.append(DaemonStatus.JobStatus(
+                        name: sj.descriptor.name,
+                        nextRun: sj.nextRun,
+                        consecutiveFailures: sj.consecutiveFailures,
+                        isRunning: sj.isRunning,
+                        config: sj.descriptor.config,
+                        isBlacklisted: captured.crashTracker.isBlacklisted(jobName: name)
+                    ))
+                }
+                return DaemonStatus(
+                    uptimeSeconds: Date.now.timeIntervalSince(captured.startDate),
+                    jobCount: jobs.count,
+                    lastTick: Date.now,
+                    jobs: jobs
+                )
+            },
+            getCrashReports: {
+                captured.crashReportStore.loadAll()
+                    .sorted { $0.timestamp > $1.timestamp }
+            },
+            enableJob: { name in
+                let configURL = captured.jobsDirectory
+                    .appending(path: name)
+                    .appending(path: "config.json")
+                return await Self.updateJobEnabled(true, at: configURL, discovery: captured.discovery, scheduler: captured.scheduler)
+            },
+            disableJob: { name in
+                let configURL = captured.jobsDirectory
+                    .appending(path: name)
+                    .appending(path: "config.json")
+                return await Self.updateJobEnabled(false, at: configURL, discovery: captured.discovery, scheduler: captured.scheduler)
+            },
+            triggerJob: { name in
+                let exists = await captured.scheduler.jobNames.contains(name)
+                guard exists else { return false }
+                await captured.scheduler.triggerJob(name: name)
+                return true
+            },
+            clearBlacklist: { name in
+                captured.crashTracker.clearBlacklist(jobName: name)
+                return true
+            },
+            onShutdown: { [weak self] in self?.shutdown() }
+        ))
+    }
+
+    /// Writes an updated `enabled` flag to `config.json`, then re-syncs the scheduler.
+    /// Uses a static method to avoid capturing `self` in a Sendable closure.
+    private static func updateJobEnabled(
+        _ enabled: Bool,
+        at configURL: URL,
+        discovery: JobDiscovery,
+        scheduler: Scheduler
+    ) async -> Bool {
+        let existing: JobConfig
+        if let data = try? Data(contentsOf: configURL),
+           let decoded = try? JSONDecoder().decode(JobConfig.self, from: data) {
+            existing = decoded
+        } else {
+            existing = .default
+        }
+
+        let updated = JobConfig(
+            intervalSeconds: existing.intervalSeconds,
+            enabled: enabled,
+            timeout: existing.timeout,
+            runAtWake: existing.runAtWake,
+            backoffOnFailure: existing.backoffOnFailure
+        )
+
+        guard let data = try? JSONEncoder().encode(updated) else { return false }
+        do {
+            try data.write(to: configURL, options: .atomic)
+        } catch {
+            return false
+        }
+
+        let jobs = discovery.discover()
+        await scheduler.syncJobs(discovered: jobs)
+        return true
+    }
+
+    // MARK: - Private
 
     private func createDirectories() {
         let fm = FileManager.default

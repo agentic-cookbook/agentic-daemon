@@ -11,6 +11,12 @@
         <string>${HOME}/Library/Application Support/com.agentic-cookbook.daemon/agentic-daemon</string>
     </array>
 
+    <key>MachServices</key>
+    <dict>
+        <key>com.agentic-cookbook.daemon.xpc</key>
+        <true/>
+    </dict>
+
     <key>KeepAlive</key>
     <true/>
 
