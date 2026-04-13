@@ -36,11 +36,26 @@ let package = Package(
             dependencies: ["AgenticDaemonLib"],
             path: "Sources/CLI"
         ),
+        .target(
+            name: "AgenticMenuBarLib",
+            dependencies: ["AgenticXPCProtocol"],
+            path: "Sources/AgenticMenuBarLib"
+        ),
+        .executableTarget(
+            name: "AgenticMenuBar",
+            dependencies: ["AgenticMenuBarLib"],
+            path: "Sources/AgenticMenuBar"
+        ),
         .testTarget(
             name: "AgenticDaemonTests",
             dependencies: ["AgenticDaemonLib"],
             path: "Tests",
             exclude: ["AgenticMenuBarTests"]
+        ),
+        .testTarget(
+            name: "AgenticMenuBarTests",
+            dependencies: ["AgenticMenuBarLib"],
+            path: "Tests/AgenticMenuBarTests"
         )
     ]
 )
