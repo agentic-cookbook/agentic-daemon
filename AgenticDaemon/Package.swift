@@ -19,9 +19,14 @@ let package = Package(
             path: "Sources/AgenticJobKit"
         ),
         .target(
+            name: "AgenticXPCProtocol",
+            path: "Sources/AgenticXPCProtocol"
+        ),
+        .target(
             name: "AgenticDaemonLib",
             dependencies: [
                 "AgenticJobKit",
+                "AgenticXPCProtocol",
                 .product(name: "CrashReporter", package: "plcrashreporter")
             ],
             path: "Sources/AgenticDaemonLib"
@@ -34,7 +39,8 @@ let package = Package(
         .testTarget(
             name: "AgenticDaemonTests",
             dependencies: ["AgenticDaemonLib"],
-            path: "Tests"
+            path: "Tests",
+            exclude: ["AgenticMenuBarTests"]
         )
     ]
 )
