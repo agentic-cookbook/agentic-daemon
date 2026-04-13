@@ -36,6 +36,7 @@ public final class DaemonEngine: @unchecked Sendable {
 
     private var watcher: DirectoryWatcher?
     private var xpcServer: XPCServer?
+    private var httpServer: HTTPServer?
 
     public init(
         configuration: DaemonConfiguration,
@@ -69,7 +70,8 @@ public final class DaemonEngine: @unchecked Sendable {
     ///   - xpcInterface: The ``NSXPCInterface`` describing the protocol.
     public func run(
         xpcExportedObject: AnyObject? = nil,
-        xpcInterface: NSXPCInterface? = nil
+        xpcInterface: NSXPCInterface? = nil,
+        httpRouter: (any DaemonHTTPRouter)? = nil
     ) async {
         logger.info("Starting daemon: \(self.configuration.identifier)")
 
@@ -126,6 +128,16 @@ public final class DaemonEngine: @unchecked Sendable {
             self.xpcServer = server
         }
 
+        if let httpPort = configuration.httpPort, let router = httpRouter {
+            let server = HTTPServer(port: httpPort, router: router, subsystem: configuration.identifier)
+            do {
+                try server.start()
+                self.httpServer = server
+            } catch {
+                logger.error("Failed to start HTTP server: \(error)")
+            }
+        }
+
         let taskCount = await scheduler.taskCount
         logger.info("Daemon running, \(taskCount) task(s) loaded")
 
@@ -135,6 +147,7 @@ public final class DaemonEngine: @unchecked Sendable {
         }
 
         watcher?.stop()
+        httpServer?.stop()
         logger.info("Daemon stopped")
     }
 
