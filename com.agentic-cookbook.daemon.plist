@@ -28,5 +28,11 @@
 
     <key>StandardErrorPath</key>
     <string>${HOME}/Library/Logs/com.agentic-cookbook.daemon/stderr.log</string>
+
+    <key>MachServices</key>
+    <dict>
+        <key>com.agentic-cookbook.daemon</key>
+        <true/>
+    </dict>
 </dict>
 </plist>

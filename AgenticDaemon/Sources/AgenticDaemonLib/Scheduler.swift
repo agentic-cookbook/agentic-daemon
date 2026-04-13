@@ -11,6 +11,7 @@ public actor Scheduler {
     private let loader = JobLoader()
     private let analytics: any AnalyticsProvider
     private let crashTracker: CrashTracker
+    private let jobRunStore: JobRunStore?
     private var scheduledJobs: [String: ScheduledJob] = [:]
 
     public struct ScheduledJob: Sendable {
@@ -23,11 +24,13 @@ public actor Scheduler {
     public init(
         buildDir: URL,
         crashTracker: CrashTracker? = nil,
-        analytics: any AnalyticsProvider = LogAnalyticsProvider()
+        analytics: any AnalyticsProvider = LogAnalyticsProvider(),
+        jobRunStore: JobRunStore? = nil
     ) {
         self.compiler = SwiftCompiler(buildDir: buildDir)
         self.crashTracker = crashTracker ?? CrashTracker(stateDir: buildDir)
         self.analytics = analytics
+        self.jobRunStore = jobRunStore
     }
 
     public func syncJobs(discovered: [JobDescriptor]) {
@@ -111,16 +114,33 @@ public actor Scheduler {
             let response = try loader.load(descriptor: descriptor, request: request)
             let duration = Date.now.timeIntervalSince(startTime)
 
+            let endTime = Date.now
             crashTracker.clearRunning()
             analytics.track(.jobCompleted(name: name, exitCode: 0, durationSeconds: duration))
+            jobRunStore?.record(JobRun(
+                jobName: name,
+                startedAt: startTime,
+                endedAt: endTime,
+                durationSeconds: duration,
+                success: true
+            ))
 
             await handleResponse(response, for: name)
             await markJobCompleted(name: name, failed: false)
 
         } catch {
             let duration = Date.now.timeIntervalSince(startTime)
+            let endTime = Date.now
             crashTracker.clearRunning()
             analytics.track(.jobFailed(name: name, exitCode: 1, durationSeconds: duration))
+            jobRunStore?.record(JobRun(
+                jobName: name,
+                startedAt: startTime,
+                endedAt: endTime,
+                durationSeconds: duration,
+                success: false,
+                errorMessage: error.localizedDescription
+            ))
             logger.error("Job \(name) failed: \(error)")
 
             await markJobCompleted(name: name, failed: true)

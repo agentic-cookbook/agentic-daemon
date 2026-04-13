@@ -14,6 +14,9 @@ public final class DaemonController: @unchecked Sendable {
     private let crashTracker: CrashTracker
     private let crashReportCollector: CrashReportCollector
     private let crashReportStore: CrashReportStore
+    private let jobRunStore: JobRunStore
+    private let httpServer: HTTPServer
+    private let xpcService: XPCService
     private let analytics: any AnalyticsProvider
     private var watcher: DirectoryWatcher?
     private var running = true
@@ -31,13 +34,38 @@ public final class DaemonController: @unchecked Sendable {
         crashReportCollector = CrashReportCollector(supportDirectory: supportDirectory)
         crashReportStore = CrashReportStore(crashesDirectory: supportDirectory.appending(path: "crashes"))
         self.analytics = analytics
-        scheduler = Scheduler(buildDir: libDir, crashTracker: crashTracker, analytics: analytics)
+        do {
+            jobRunStore = try JobRunStore(databaseURL: supportDirectory.appending(path: "runs.db"))
+        } catch {
+            fatalError("Failed to open job run store: \(error)")
+        }
+        scheduler = Scheduler(buildDir: libDir, crashTracker: crashTracker, analytics: analytics, jobRunStore: jobRunStore)
+        let router = HTTPRouter(
+            scheduler: scheduler,
+            jobRunStore: jobRunStore,
+            crashTracker: crashTracker,
+            startTime: Date()
+        )
+        httpServer = HTTPServer(router: router)
+        xpcService = XPCService(
+            scheduler: scheduler,
+            jobRunStore: jobRunStore,
+            crashTracker: crashTracker,
+            startTime: Date()
+        )
     }
 
     public func run() async {
         logger.info("Starting agentic-daemon")
 
         createDirectories()
+
+        do {
+            try httpServer.start()
+        } catch {
+            logger.error("Failed to start HTTP server: \(error)")
+        }
+        xpcService.start()
 
         // Install crash handler for future crashes
         do {
@@ -66,8 +94,9 @@ public final class DaemonController: @unchecked Sendable {
             }
         }
 
-        // Clean up old crash reports
+        // Clean up old crash reports and run history
         crashReportStore.cleanup(retentionDays: 30)
+        jobRunStore.cleanup(retentionDays: 30)
 
         await scheduler.recoverFromCrash()
 
@@ -96,6 +125,8 @@ public final class DaemonController: @unchecked Sendable {
     public func shutdown() {
         logger.info("Shutdown requested")
         running = false
+        httpServer.stop()
+        xpcService.stop()
     }
 
     private func createDirectories() {

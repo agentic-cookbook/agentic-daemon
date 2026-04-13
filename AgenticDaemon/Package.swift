@@ -24,7 +24,8 @@ let package = Package(
                 "AgenticJobKit",
                 .product(name: "CrashReporter", package: "plcrashreporter")
             ],
-            path: "Sources/AgenticDaemonLib"
+            path: "Sources/AgenticDaemonLib",
+            linkerSettings: [.linkedLibrary("sqlite3")]
         ),
         .executableTarget(
             name: "agentic-daemon",

@@ -1,0 +1,385 @@
+#!/usr/bin/env python3
+"""
+agenticd — agentic-daemon management CLI
+
+Commands:
+    agenticd               # same as 'agenticd status'
+    agenticd status        # daemon health + job summary
+    agenticd jobs          # per-job details (next run, failures, running)
+    agenticd runs [job]    # job execution history (requires daemon running)
+    agenticd crashes       # recent crash reports
+    agenticd logs          # tail stdout + stderr logs
+
+Install: symlinked to /usr/local/bin/agenticd by install.sh
+"""
+
+from __future__ import annotations
+
+import json
+import os
+import subprocess
+import sys
+import urllib.error
+import urllib.request
+from datetime import datetime, timezone
+from pathlib import Path
+
+LABEL = "com.agentic-cookbook.daemon"
+SUPPORT = Path.home() / "Library" / "Application Support" / LABEL
+LOGS = Path.home() / "Library" / "Logs" / LABEL
+STATUS_FILE = SUPPORT / "status.json"
+CRASHES_DIR = SUPPORT / "crashes"
+BLACKLIST_FILE = SUPPORT / "blacklist.json"
+HTTP_BASE = "http://localhost:22846"
+
+
+# ── HTTP client ───────────────────────────────────────────────────────────────
+
+def _http_get(path: str) -> dict | list | None:
+    """Query the HTTP API. Returns parsed JSON or None on any failure."""
+    try:
+        with urllib.request.urlopen(f"{HTTP_BASE}{path}", timeout=2) as r:
+            return json.loads(r.read())
+    except Exception:
+        return None
+
+
+# ── helpers ───────────────────────────────────────────────────────────────────
+
+def _bold(s: str) -> str:
+    return f"\033[1m{s}\033[0m"
+
+def _dim(s: str) -> str:
+    return f"\033[2m{s}\033[0m"
+
+def _green(s: str) -> str:
+    return f"\033[32m{s}\033[0m"
+
+def _yellow(s: str) -> str:
+    return f"\033[33m{s}\033[0m"
+
+def _red(s: str) -> str:
+    return f"\033[31m{s}\033[0m"
+
+def _no_color() -> bool:
+    return not sys.stdout.isatty() or bool(os.environ.get("NO_COLOR"))
+
+def _fmt(fn, s: str) -> str:
+    return s if _no_color() else fn(s)
+
+def _uptime_str(seconds: float) -> str:
+    s = int(seconds)
+    if s < 60:
+        return f"{s}s"
+    if s < 3600:
+        return f"{s // 60}m {s % 60}s"
+    h = s // 3600
+    m = (s % 3600) // 60
+    return f"{h}h {m}m"
+
+def _rel_time(iso: str) -> str:
+    """Return a human-friendly relative time string for an ISO8601 timestamp."""
+    try:
+        dt = datetime.fromisoformat(iso.replace("Z", "+00:00"))
+        delta = (datetime.now(timezone.utc) - dt).total_seconds()
+        if delta < 0:
+            return "in the future"
+        if delta < 60:
+            return f"{int(delta)}s ago"
+        if delta < 3600:
+            return f"{int(delta // 60)}m ago"
+        if delta < 86400:
+            return f"{int(delta // 3600)}h ago"
+        return f"{int(delta // 86400)}d ago"
+    except Exception:
+        return iso
+
+def _daemon_pid() -> str:
+    """Return PID string from launchctl, or empty string if not running."""
+    result = subprocess.run(
+        ["launchctl", "list", LABEL], capture_output=True, text=True
+    )
+    if result.returncode != 0:
+        return ""
+    for line in result.stdout.splitlines():
+        if '"PID"' in line:
+            return line.split()[-1].rstrip(",").strip('"')
+    return ""
+
+def _load_status() -> dict | None:
+    if not STATUS_FILE.exists():
+        return None
+    try:
+        return json.loads(STATUS_FILE.read_text())
+    except Exception:
+        return None
+
+def _load_blacklist() -> list[str]:
+    if not BLACKLIST_FILE.exists():
+        return []
+    try:
+        data = json.loads(BLACKLIST_FILE.read_text())
+        return data if isinstance(data, list) else []
+    except Exception:
+        return []
+
+def _load_crashes() -> list[dict]:
+    if not CRASHES_DIR.exists():
+        return []
+    reports = []
+    for f in sorted(CRASHES_DIR.glob("crash-*.json"), reverse=True):
+        try:
+            reports.append(json.loads(f.read_text()))
+        except Exception:
+            pass
+    return reports
+
+
+# ── commands ──────────────────────────────────────────────────────────────────
+
+def cmd_status() -> None:
+    pid = _daemon_pid()
+    http_health = _http_get("/health")
+    status = http_health or _load_status()
+    live = http_health is not None
+    blacklist = _load_blacklist()
+
+    # Daemon health line
+    if pid:
+        label = _fmt(_green, "running")
+        pid_str = _fmt(_dim, f"PID {pid}")
+    else:
+        label = _fmt(_red, "not running")
+        pid_str = ""
+
+    parts = [_fmt(_bold, LABEL), label]
+    if pid_str:
+        parts.append(pid_str)
+    print("  ".join(parts))
+
+    if status:
+        uptime = _uptime_str(status.get("uptimeSeconds", 0))
+        job_count = status.get("jobCount", 0)
+        source = "" if live else _fmt(_dim, " (cached)")
+        if live:
+            print(f"  uptime: {uptime}  jobs: {job_count}")
+        else:
+            last_tick = _rel_time(status.get("lastTick", ""))
+            print(f"  uptime: {uptime}  jobs: {job_count}  last tick: {last_tick}{source}")
+    else:
+        if not pid:
+            print()
+            print("  Daemon is not running. Start with:")
+            print(f"    launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/{LABEL}.plist")
+        else:
+            print(_fmt(_dim, "  (status.json not yet written — daemon may be starting)"))
+
+    if blacklist:
+        print()
+        print(_fmt(_yellow, f"  Blacklisted jobs ({len(blacklist)}):") + " " + ", ".join(blacklist))
+        print(_fmt(_dim, "  Blacklisted jobs will resume when their source changes."))
+
+    crashes = _load_crashes()
+    if crashes:
+        recent = crashes[:3]
+        print()
+        print(_fmt(_yellow, f"  Recent crashes ({len(crashes)} total):"))
+        for c in recent:
+            ts = _rel_time(c.get("timestamp", ""))
+            job = c.get("jobName", "?")
+            sig = c.get("signal") or c.get("exceptionType") or "unknown"
+            print(f"    {job}  {sig}  {_fmt(_dim, ts)}")
+        if len(crashes) > 3:
+            print(_fmt(_dim, f"    … and {len(crashes) - 3} more. Run 'agenticd crashes' for full list."))
+
+    print()
+
+
+def cmd_jobs() -> None:
+    http_jobs = _http_get("/jobs")
+    if http_jobs is not None:
+        blacklist = _load_blacklist()
+        if not http_jobs:
+            print("No jobs discovered.")
+            print(_fmt(_dim, f"  Drop a job.swift into {SUPPORT / 'jobs'}/"))
+            return
+        print(_fmt(_bold, f"{'NAME':<24} {'NEXT RUN':<16} {'FAILURES':<10} {'STATE'}"))
+        print("─" * 64)
+        for job in sorted(http_jobs, key=lambda j: j["name"]):
+            name = job["name"]
+            next_run = _rel_time(job.get("nextRun", ""))
+            failures = job.get("consecutiveFailures", 0)
+            is_running = job.get("isRunning", False)
+            is_blacklisted = job.get("isBlacklisted", name in blacklist)
+            if is_blacklisted:
+                state = _fmt(_red, "blacklisted")
+            elif is_running:
+                state = _fmt(_green, "running")
+            elif failures > 0:
+                state = _fmt(_yellow, "backing off")
+            else:
+                state = _fmt(_dim, "idle")
+            fail_str = _fmt(_yellow, str(failures)) if failures > 0 else str(failures)
+            print(f"  {name:<22} {next_run:<16} {fail_str:<10} {state}")
+        print()
+        return
+
+    # Fall back to status.json
+    status = _load_status()
+    blacklist = _load_blacklist()
+
+    if not status:
+        pid = _daemon_pid()
+        if not pid:
+            print(_fmt(_red, "Daemon is not running."))
+        else:
+            print(_fmt(_dim, "status.json not yet available — daemon may be starting."))
+        return
+
+    jobs = status.get("jobs", [])
+    if not jobs:
+        print("No jobs discovered.")
+        print(_fmt(_dim, f"  Drop a job.swift into {SUPPORT / 'jobs'}/"))
+        return
+
+    print(_fmt(_bold, f"{'NAME':<24} {'NEXT RUN':<16} {'FAILURES':<10} {'STATE'}"))
+    print("─" * 64)
+    for job in sorted(jobs, key=lambda j: j["name"]):
+        name = job["name"]
+        next_run = _rel_time(job.get("nextRun", ""))
+        failures = job.get("consecutiveFailures", 0)
+        is_running = job.get("isRunning", False)
+        is_blacklisted = name in blacklist
+        if is_blacklisted:
+            state = _fmt(_red, "blacklisted")
+        elif is_running:
+            state = _fmt(_green, "running")
+        elif failures > 0:
+            state = _fmt(_yellow, "backing off")
+        else:
+            state = _fmt(_dim, "idle")
+        fail_str = _fmt(_yellow, str(failures)) if failures > 0 else str(failures)
+        print(f"  {name:<22} {next_run:<16} {fail_str:<10} {state}")
+    print()
+
+
+def cmd_runs() -> None:
+    args = sys.argv[2:]
+    if args:
+        job_name = args[0]
+        data = _http_get(f"/jobs/{job_name}/runs")
+        title = f"Runs for {job_name}"
+    else:
+        data = _http_get("/runs")
+        title = "Recent runs (all jobs)"
+
+    if data is None:
+        print(_fmt(_yellow, "HTTP API unavailable — run history requires the daemon to be running."))
+        return
+
+    if not data:
+        print("No runs recorded yet.")
+        return
+
+    print(_fmt(_bold, title))
+    print(_fmt(_bold, f"{'TIME':<16} {'JOB':<24} {'DURATION':<12} RESULT"))
+    print("─" * 68)
+    for r in data:
+        ts = _rel_time(r.get("startedAt", ""))
+        job = r.get("jobName", "?")
+        dur = f"{r.get('durationSeconds', 0):.2f}s"
+        success = r.get("success", False)
+        result = _fmt(_green, "ok") if success else _fmt(_red, "failed")
+        err = r.get("errorMessage", "")
+        if err:
+            result += _fmt(_dim, f"  {err[:40]}")
+        print(f"  {ts:<14} {job:<24} {dur:<12} {result}")
+    print()
+
+
+def cmd_crashes() -> None:
+    crashes = _load_crashes()
+    if not crashes:
+        print("No crash reports found.")
+        return
+
+    print(_fmt(_bold, f"{'TIME':<16} {'JOB':<24} {'SIGNAL/EXCEPTION':<20} SOURCE"))
+    print("─" * 72)
+    for c in crashes:
+        ts = _rel_time(c.get("timestamp", ""))
+        job = c.get("jobName", "?")
+        sig = c.get("signal") or c.get("exceptionType") or "—"
+        source = c.get("source", "?")
+        print(f"  {ts:<14} {job:<24} {sig:<20} {source}")
+
+        frames = c.get("stackTrace") or []
+        for frame in frames[:3]:
+            symbol = frame.get("symbol") or "?"
+            src = frame.get("sourceFile")
+            line = frame.get("sourceLine")
+            loc = f" ({src}:{line})" if src and line else ""
+            print(_fmt(_dim, f"    {symbol}{loc}"))
+        if len(frames) > 3:
+            print(_fmt(_dim, f"    … {len(frames) - 3} more frames"))
+        print()
+
+
+def cmd_logs() -> None:
+    stdout_log = LOGS / "stdout.log"
+    stderr_log = LOGS / "stderr.log"
+
+    missing = [str(p) for p in (stdout_log, stderr_log) if not p.exists()]
+    if missing:
+        print(_fmt(_yellow, "Log files not yet created:"))
+        for m in missing:
+            print(f"  {m}")
+        if len(missing) == 2:
+            return
+
+    print(_fmt(_dim, f"Tailing {LOGS}/ — Ctrl-C to stop"))
+    print()
+    try:
+        subprocess.run(["tail", "-F", str(stdout_log), str(stderr_log)])
+    except KeyboardInterrupt:
+        pass
+
+
+# ── dispatch ──────────────────────────────────────────────────────────────────
+
+COMMANDS = {
+    "status": cmd_status,
+    "jobs": cmd_jobs,
+    "runs": cmd_runs,
+    "crashes": cmd_crashes,
+    "logs": cmd_logs,
+}
+
+def usage() -> None:
+    print("Usage: agenticd [status|jobs|runs|crashes|logs]")
+    print()
+    print("  status        Daemon health and job summary (default)")
+    print("  jobs          Per-job details: next run, failures, state")
+    print("  runs [job]    Execution history (all jobs, or one job)")
+    print("  crashes       Recent crash reports")
+    print("  logs          Tail stdout and stderr logs")
+    sys.exit(1)
+
+
+def main() -> None:
+    args = sys.argv[1:]
+    if not args:
+        cmd_status()
+        return
+
+    cmd = args[0]
+    if cmd in ("-h", "--help", "help"):
+        usage()
+    if cmd not in COMMANDS:
+        print(f"agenticd: unknown command '{cmd}'", file=sys.stderr)
+        usage()
+
+    COMMANDS[cmd]()
+
+
+if __name__ == "__main__":
+    main()
