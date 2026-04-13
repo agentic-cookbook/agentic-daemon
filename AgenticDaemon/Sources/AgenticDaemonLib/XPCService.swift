@@ -52,7 +52,7 @@ public final class XPCService: NSObject, AgenticDaemonXPCProtocol, @unchecked Se
         let replyBox = SendableBox(value: reply)
         Task {
             let uptime = Date().timeIntervalSince(startTime)
-            let count = await scheduler.jobCount
+            let count = await scheduler.taskCount
             let payload: [String: Any] = [
                 "status": "ok",
                 "uptimeSeconds": uptime,
@@ -68,15 +68,15 @@ public final class XPCService: NSObject, AgenticDaemonXPCProtocol, @unchecked Se
         let crashTracker = self.crashTracker
         let replyBox = SendableBox(value: reply)
         Task {
-            let names = await scheduler.jobNames
+            let names = await scheduler.taskNames
             var items: [Data] = []
             for name in names.sorted() {
-                guard let job = await scheduler.job(named: name) else { continue }
+                guard let job = await scheduler.scheduledTask(named: name) else { continue }
                 let payload: [String: Any] = [
                     "name": name,
                     "consecutiveFailures": job.consecutiveFailures,
                     "isRunning": job.isRunning,
-                    "isBlacklisted": crashTracker.isBlacklisted(jobName: name)
+                    "isBlacklisted": crashTracker.isBlacklisted(taskName: name)
                 ]
                 if let d = try? JSONSerialization.data(withJSONObject: payload) {
                     items.append(d)

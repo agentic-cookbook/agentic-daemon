@@ -7,7 +7,7 @@ let logger = Logger(
     category: "main"
 )
 
-let controller = DaemonController()
+let controller = AgenticDaemonController()
 
 signal(SIGTERM) { _ in
     controller.shutdown()

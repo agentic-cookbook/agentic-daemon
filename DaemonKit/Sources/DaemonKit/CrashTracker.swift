@@ -2,34 +2,31 @@ import Foundation
 import os
 
 public struct CrashTracker: Sendable {
-    private let logger = Logger(
-        subsystem: "com.agentic-cookbook.daemon",
-        category: "CrashTracker"
-    )
-
+    private let logger: Logger
     private let runningFileURL: URL
     private let blacklistFileURL: URL
 
-    public init(stateDir: URL) {
+    public init(stateDir: URL, subsystem: String) {
+        self.logger = Logger(subsystem: subsystem, category: "CrashTracker")
         self.runningFileURL = stateDir.appending(path: "running.txt")
         self.blacklistFileURL = stateDir.appending(path: "blacklist.json")
     }
 
-    /// Write the name of the job about to run. If the daemon crashes,
+    /// Write the name of the task about to run. If the daemon crashes,
     /// this file will still exist on next startup.
-    public func markRunning(jobName: String) {
-        try? jobName.write(to: runningFileURL, atomically: true, encoding: .utf8)
+    public func markRunning(taskName: String) {
+        try? taskName.write(to: runningFileURL, atomically: true, encoding: .utf8)
     }
 
-    /// Clear the running marker after a job completes successfully.
+    /// Clear the running marker after a task completes successfully.
     public func clearRunning() {
         try? FileManager.default.removeItem(at: runningFileURL)
     }
 
-    /// Read the crashed job name without clearing the marker.
+    /// Read the crashed task name without clearing the marker.
     /// Use this to pass the name to CrashReportCollector before
     /// calling checkForCrash() which clears it.
-    public func crashedJobName() -> String? {
+    public func crashedTaskName() -> String? {
         let path = runningFileURL.path(percentEncoded: false)
         guard FileManager.default.fileExists(atPath: path),
               let name = try? String(contentsOf: runningFileURL, encoding: .utf8) else {
@@ -40,7 +37,7 @@ public struct CrashTracker: Sendable {
     }
 
     /// On startup, check if a running marker exists from a previous crash.
-    /// Returns the job name that was running when the daemon died, or nil.
+    /// Returns the task name that was running when the daemon died, or nil.
     /// Clears the marker after reading.
     public func checkForCrash() -> String? {
         let path = runningFileURL.path(percentEncoded: false)
@@ -54,29 +51,29 @@ public struct CrashTracker: Sendable {
 
         guard !trimmed.isEmpty else { return nil }
 
-        logger.warning("Detected crash while running job: \(trimmed)")
+        logger.warning("Detected crash while running task: \(trimmed)")
         return trimmed
     }
 
-    /// Add a job to the blacklist. It won't be loaded until cleared.
-    public func blacklist(jobName: String) {
+    /// Add a task to the blacklist. It won't be loaded until cleared.
+    public func blacklist(taskName: String) {
         var list = loadBlacklist()
-        list.insert(jobName)
+        list.insert(taskName)
         saveBlacklist(list)
-        logger.warning("Blacklisted job: \(jobName)")
+        logger.warning("Blacklisted task: \(taskName)")
     }
 
-    /// Check if a job is blacklisted.
-    public func isBlacklisted(jobName: String) -> Bool {
-        loadBlacklist().contains(jobName)
+    /// Check if a task is blacklisted.
+    public func isBlacklisted(taskName: String) -> Bool {
+        loadBlacklist().contains(taskName)
     }
 
-    /// Remove a job from the blacklist (e.g., when source changes).
-    public func clearBlacklist(jobName: String) {
+    /// Remove a task from the blacklist (e.g., when source changes).
+    public func clearBlacklist(taskName: String) {
         var list = loadBlacklist()
-        list.remove(jobName)
+        list.remove(taskName)
         saveBlacklist(list)
-        logger.info("Cleared blacklist for: \(jobName)")
+        logger.info("Cleared blacklist for: \(taskName)")
     }
 
     private func loadBlacklist() -> Set<String> {

@@ -2,14 +2,11 @@ import Foundation
 import os
 
 public struct CrashReportStore: Sendable {
-    private let logger = Logger(
-        subsystem: "com.agentic-cookbook.daemon",
-        category: "CrashReportStore"
-    )
-
+    private let logger: Logger
     private let crashesDirectory: URL
 
-    public init(crashesDirectory: URL) {
+    public init(crashesDirectory: URL, subsystem: String) {
+        self.logger = Logger(subsystem: subsystem, category: "CrashReportStore")
         self.crashesDirectory = crashesDirectory
     }
 

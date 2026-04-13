@@ -8,7 +8,7 @@ struct CrashReportTests {
     @Test("CrashReport round-trip encode/decode")
     func roundTrip() throws {
         let report = CrashReport(
-            jobName: "my-job",
+            taskName: "my-job",
             timestamp: Date(timeIntervalSince1970: 1_700_000_000),
             signal: "SIGABRT",
             exceptionType: "EXC_CRASH",
@@ -27,7 +27,7 @@ struct CrashReportTests {
         let data = try JSONEncoder().encode(report)
         let decoded = try JSONDecoder().decode(CrashReport.self, from: data)
 
-        #expect(decoded.jobName == "my-job")
+        #expect(decoded.taskName == "my-job")
         #expect(decoded.signal == "SIGABRT")
         #expect(decoded.exceptionType == "EXC_CRASH")
         #expect(decoded.faultingThread == 7)
@@ -41,7 +41,7 @@ struct CrashReportTests {
     @Test("CrashReport with nil optional fields")
     func nilOptionals() throws {
         let report = CrashReport(
-            jobName: "bare-job",
+            taskName: "bare-job",
             timestamp: Date(timeIntervalSince1970: 1_700_000_000),
             signal: nil,
             exceptionType: nil,
@@ -53,7 +53,7 @@ struct CrashReportTests {
         let data = try JSONEncoder().encode(report)
         let decoded = try JSONDecoder().decode(CrashReport.self, from: data)
 
-        #expect(decoded.jobName == "bare-job")
+        #expect(decoded.taskName == "bare-job")
         #expect(decoded.signal == nil)
         #expect(decoded.exceptionType == nil)
         #expect(decoded.faultingThread == nil)
@@ -88,11 +88,12 @@ struct CrashReportTests {
 
         let collector = CrashReportCollector(
             supportDirectory: tempDir,
-            diagnosticReportsDirectory: tempDir.appending(path: "empty-diag"),
-            processName: "agentic-daemon"
+            processName: "agentic-daemon",
+            subsystem: "test",
+            diagnosticReportsDirectory: tempDir.appending(path: "empty-diag")
         )
 
-        let reports = collector.collectPendingReports(crashedJobName: "some-job")
+        let reports = collector.collectPendingReports(crashedTaskName: "some-job")
         #expect(reports.isEmpty)
     }
 
@@ -105,7 +106,7 @@ struct CrashReportTests {
         defer { try? FileManager.default.removeItem(at: tempDir) }
 
         let report = CrashReport(
-            jobName: "bad-plugin",
+            taskName: "bad-plugin",
             timestamp: Date(timeIntervalSince1970: 1_700_000_000),
             signal: "SIGSEGV",
             exceptionType: "EXC_BAD_ACCESS",
@@ -116,7 +117,7 @@ struct CrashReportTests {
             source: .plcrash
         )
 
-        let store = CrashReportStore(crashesDirectory: crashesDir)
+        let store = CrashReportStore(crashesDirectory: crashesDir, subsystem: "test")
         try store.save(report)
 
         let files = try FileManager.default.contentsOfDirectory(
@@ -134,7 +135,7 @@ struct CrashReportTests {
         defer { try? FileManager.default.removeItem(at: tempDir) }
 
         let report = CrashReport(
-            jobName: "bad-plugin",
+            taskName: "bad-plugin",
             timestamp: Date(timeIntervalSince1970: 1_700_000_000),
             signal: "SIGABRT",
             exceptionType: "EXC_CRASH",
@@ -143,12 +144,12 @@ struct CrashReportTests {
             source: .diagnosticReport
         )
 
-        let store = CrashReportStore(crashesDirectory: crashesDir)
+        let store = CrashReportStore(crashesDirectory: crashesDir, subsystem: "test")
         try store.save(report)
 
         let loaded = store.loadAll()
         #expect(loaded.count == 1)
-        #expect(loaded[0].jobName == "bad-plugin")
+        #expect(loaded[0].taskName == "bad-plugin")
         #expect(loaded[0].signal == "SIGABRT")
         #expect(loaded[0].source == .diagnosticReport)
     }
@@ -164,7 +165,7 @@ struct CrashReportTests {
         // Write a report file manually with an old timestamp in the name
         let oldFile = crashesDir.appending(path: "crash-2020-01-01T000000Z.json")
         let report = CrashReport(
-            jobName: "ancient",
+            taskName: "ancient",
             timestamp: Date(timeIntervalSince1970: 1_577_836_800),
             signal: nil, exceptionType: nil, faultingThread: nil,
             stackTrace: nil, source: .plcrash
@@ -173,9 +174,9 @@ struct CrashReportTests {
         try data.write(to: oldFile)
 
         // Write a recent one
-        let store = CrashReportStore(crashesDirectory: crashesDir)
+        let store = CrashReportStore(crashesDirectory: crashesDir, subsystem: "test")
         let recentReport = CrashReport(
-            jobName: "recent",
+            taskName: "recent",
             timestamp: Date.now,
             signal: "SIGABRT", exceptionType: nil, faultingThread: nil,
             stackTrace: nil, source: .plcrash
@@ -186,6 +187,6 @@ struct CrashReportTests {
 
         let remaining = store.loadAll()
         #expect(remaining.count == 1)
-        #expect(remaining[0].jobName == "recent")
+        #expect(remaining[0].taskName == "recent")
     }
 }

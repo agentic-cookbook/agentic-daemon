@@ -81,15 +81,16 @@ struct CrashReportCollectorTests {
 
         let collector = CrashReportCollector(
             supportDirectory: supportDir,
-            diagnosticReportsDirectory: diagDir,
-            processName: "agentic-daemon"
+            processName: "agentic-daemon",
+            subsystem: "test",
+            diagnosticReportsDirectory: diagDir
         )
 
-        let reports = collector.collectPendingReports(crashedJobName: "test-job")
+        let reports = collector.collectPendingReports(crashedTaskName: "test-job")
 
         #expect(reports.count == 1)
         let report = try #require(reports.first)
-        #expect(report.jobName == "test-job")
+        #expect(report.taskName == "test-job")
         #expect(report.exceptionType == "EXC_CRASH")
         #expect(report.signal == "SIGABRT")
         #expect(report.faultingThread == 3)
@@ -110,11 +111,12 @@ struct CrashReportCollectorTests {
 
         let collector = CrashReportCollector(
             supportDirectory: supportDir,
-            diagnosticReportsDirectory: diagDir,
-            processName: "agentic-daemon"
+            processName: "agentic-daemon",
+            subsystem: "test",
+            diagnosticReportsDirectory: diagDir
         )
 
-        let reports = collector.collectPendingReports(crashedJobName: "test-job")
+        let reports = collector.collectPendingReports(crashedTaskName: "test-job")
         let frames = try #require(reports.first?.stackTrace)
 
         #expect(frames.count == 3)
@@ -145,11 +147,12 @@ struct CrashReportCollectorTests {
 
         let collector = CrashReportCollector(
             supportDirectory: supportDir,
-            diagnosticReportsDirectory: diagDir,
-            processName: "agentic-daemon"
+            processName: "agentic-daemon",
+            subsystem: "test",
+            diagnosticReportsDirectory: diagDir
         )
 
-        let reports = collector.collectPendingReports(crashedJobName: "test-job")
+        let reports = collector.collectPendingReports(crashedTaskName: "test-job")
         #expect(reports.count == 1)
         #expect(reports[0].signal == "SIGABRT")
     }
@@ -168,11 +171,12 @@ struct CrashReportCollectorTests {
 
         let collector = CrashReportCollector(
             supportDirectory: supportDir,
-            diagnosticReportsDirectory: diagDir,
-            processName: "agentic-daemon"
+            processName: "agentic-daemon",
+            subsystem: "test",
+            diagnosticReportsDirectory: diagDir
         )
 
-        let reports = collector.collectPendingReports(crashedJobName: "test-job")
+        let reports = collector.collectPendingReports(crashedTaskName: "test-job")
         #expect(reports.isEmpty)
     }
 
@@ -183,11 +187,12 @@ struct CrashReportCollectorTests {
 
         let collector = CrashReportCollector(
             supportDirectory: supportDir,
-            diagnosticReportsDirectory: supportDir.appending(path: "does-not-exist"),
-            processName: "agentic-daemon"
+            processName: "agentic-daemon",
+            subsystem: "test",
+            diagnosticReportsDirectory: supportDir.appending(path: "does-not-exist")
         )
 
-        let reports = collector.collectPendingReports(crashedJobName: "test-job")
+        let reports = collector.collectPendingReports(crashedTaskName: "test-job")
         #expect(reports.isEmpty)
     }
 
@@ -198,8 +203,9 @@ struct CrashReportCollectorTests {
 
         let collector = CrashReportCollector(
             supportDirectory: supportDir,
-            diagnosticReportsDirectory: supportDir.appending(path: "empty"),
-            processName: "agentic-daemon"
+            processName: "agentic-daemon",
+            subsystem: "test",
+            diagnosticReportsDirectory: supportDir.appending(path: "empty")
         )
 
         // Should not throw
@@ -213,11 +219,12 @@ struct CrashReportCollectorTests {
 
         let collector = CrashReportCollector(
             supportDirectory: supportDir,
-            diagnosticReportsDirectory: supportDir.appending(path: "empty"),
-            processName: "agentic-daemon"
+            processName: "agentic-daemon",
+            subsystem: "test",
+            diagnosticReportsDirectory: supportDir.appending(path: "empty")
         )
 
-        let report = collector.collectPLCrashReport(crashedJobName: "test-job")
+        let report = collector.collectPLCrashReport(crashedTaskName: "test-job")
         #expect(report == nil)
     }
 
@@ -237,11 +244,12 @@ struct CrashReportCollectorTests {
 
         let collector = CrashReportCollector(
             supportDirectory: supportDir,
-            diagnosticReportsDirectory: diagDir,
-            processName: "agentic-daemon"
+            processName: "agentic-daemon",
+            subsystem: "test",
+            diagnosticReportsDirectory: diagDir
         )
 
-        let reports = collector.collectPendingReports(crashedJobName: "test-job")
+        let reports = collector.collectPendingReports(crashedTaskName: "test-job")
         #expect(reports.isEmpty)
     }
 }

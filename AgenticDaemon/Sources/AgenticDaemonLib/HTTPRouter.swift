@@ -69,7 +69,7 @@ public struct HTTPRouter: Sendable {
 
     private func handleHealth() async -> HTTPResponse {
         let uptime = Date().timeIntervalSince(startTime)
-        let count = await scheduler.jobCount
+        let count = await scheduler.taskCount
         return .json(HealthResponse(status: "ok", uptimeSeconds: uptime, jobCount: count, version: "1.0.0"))
     }
 
@@ -82,23 +82,23 @@ public struct HTTPRouter: Sendable {
     }
 
     private func handleJobs() async -> HTTPResponse {
-        let names = await scheduler.jobNames
+        let names = await scheduler.taskNames
         var summaries: [JobSummary] = []
         for name in names.sorted() {
-            guard let job = await scheduler.job(named: name) else { continue }
+            guard let job = await scheduler.scheduledTask(named: name) else { continue }
             summaries.append(JobSummary(
                 name: name,
                 nextRun: job.nextRun,
                 consecutiveFailures: job.consecutiveFailures,
                 isRunning: job.isRunning,
-                isBlacklisted: crashTracker.isBlacklisted(jobName: name)
+                isBlacklisted: crashTracker.isBlacklisted(taskName: name)
             ))
         }
         return .json(summaries)
     }
 
     private func handleJob(name: String) async -> HTTPResponse {
-        guard let job = await scheduler.job(named: name) else {
+        guard let job = await scheduler.scheduledTask(named: name) else {
             return .notFound()
         }
         struct JobDetail: Encodable {
@@ -114,7 +114,7 @@ public struct HTTPRouter: Sendable {
             nextRun: job.nextRun,
             consecutiveFailures: job.consecutiveFailures,
             isRunning: job.isRunning,
-            isBlacklisted: crashTracker.isBlacklisted(jobName: name),
+            isBlacklisted: crashTracker.isBlacklisted(taskName: name),
             recentRuns: jobRunStore.runs(for: name, limit: 20)
         ))
     }

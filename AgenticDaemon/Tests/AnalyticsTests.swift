@@ -42,52 +42,51 @@ struct AnalyticsTests {
         #expect(events[0].properties["durationSeconds"] as? Double == 1.5)
     }
 
-    @Test("track records job_started event")
+    @Test("track records task_started event")
     func tracksStarted() {
         let provider = MockAnalyticsProvider()
-        provider.track(.jobStarted(name: "my-job"))
+        provider.track(.taskStarted(name: "my-job"))
 
         let events = provider.events
-        #expect(events[0].kind == .jobStarted)
+        #expect(events[0].kind == .taskStarted)
         #expect(events[0].properties["name"] as? String == "my-job")
     }
 
-    @Test("track records job_completed event with exit code and duration")
+    @Test("track records task_completed event with duration")
     func tracksCompleted() {
         let provider = MockAnalyticsProvider()
-        provider.track(.jobCompleted(name: "my-job", exitCode: 0, durationSeconds: 2.3))
+        provider.track(.taskCompleted(name: "my-job", durationSeconds: 2.3))
 
         let events = provider.events
-        #expect(events[0].kind == .jobCompleted)
+        #expect(events[0].kind == .taskCompleted)
         #expect(events[0].properties["name"] as? String == "my-job")
-        #expect(events[0].properties["exitCode"] as? Int32 == 0)
         #expect(events[0].properties["durationSeconds"] as? Double == 2.3)
     }
 
-    @Test("track records job_failed event with exit code and duration")
+    @Test("track records task_failed event with duration")
     func tracksFailed() {
         let provider = MockAnalyticsProvider()
-        provider.track(.jobFailed(name: "my-job", exitCode: 1, durationSeconds: 0.5))
+        provider.track(.taskFailed(name: "my-job", durationSeconds: 0.5))
 
         let events = provider.events
-        #expect(events[0].kind == .jobFailed)
-        #expect(events[0].properties["exitCode"] as? Int32 == 1)
+        #expect(events[0].kind == .taskFailed)
+        #expect(events[0].properties["durationSeconds"] as? Double == 0.5)
     }
 
-    @Test("track records job_timed_out event with timeout value")
+    @Test("track records task_timed_out event with timeout value")
     func tracksTimedOut() {
         let provider = MockAnalyticsProvider()
-        provider.track(.jobTimedOut(name: "my-job", timeoutSeconds: 30))
+        provider.track(.taskTimedOut(name: "my-job", timeoutSeconds: 30))
 
         let events = provider.events
-        #expect(events[0].kind == .jobTimedOut)
+        #expect(events[0].kind == .taskTimedOut)
         #expect(events[0].properties["timeoutSeconds"] as? Double == 30)
     }
 
-    @Test("track records job_crashed event with signal and exception type")
+    @Test("track records task_crashed event with signal and exception type")
     func tracksCrashed() {
         let provider = MockAnalyticsProvider()
-        provider.track(.jobCrashed(
+        provider.track(.taskCrashed(
             name: "bad-plugin",
             signal: "SIGABRT",
             exceptionType: "EXC_CRASH"
@@ -95,7 +94,7 @@ struct AnalyticsTests {
 
         let events = provider.events
         #expect(events.count == 1)
-        #expect(events[0].kind == .jobCrashed)
+        #expect(events[0].kind == .taskCrashed)
         #expect(events[0].properties["name"] as? String == "bad-plugin")
         #expect(events[0].properties["signal"] as? String == "SIGABRT")
         #expect(events[0].properties["exceptionType"] as? String == "EXC_CRASH")
@@ -103,10 +102,10 @@ struct AnalyticsTests {
 
     @Test("LogAnalyticsProvider does not crash")
     func logProviderDoesNotCrash() {
-        let provider = LogAnalyticsProvider()
+        let provider = LogAnalyticsProvider(subsystem: "test")
         provider.track(.jobDiscovered(name: "test"))
-        provider.track(.jobCompleted(name: "test", exitCode: 0, durationSeconds: 1.0))
-        provider.track(.jobCrashed(name: "test", signal: "SIGABRT", exceptionType: "EXC_CRASH"))
+        provider.track(.taskCompleted(name: "test", durationSeconds: 1.0))
+        provider.track(.taskCrashed(name: "test", signal: "SIGABRT", exceptionType: "EXC_CRASH"))
         // No crash = pass
     }
 
@@ -114,10 +113,10 @@ struct AnalyticsTests {
     func multipleEvents() {
         let provider = MockAnalyticsProvider()
         provider.track(.jobDiscovered(name: "a"))
-        provider.track(.jobStarted(name: "a"))
-        provider.track(.jobCompleted(name: "a", exitCode: 0, durationSeconds: 1.0))
+        provider.track(.taskStarted(name: "a"))
+        provider.track(.taskCompleted(name: "a", durationSeconds: 1.0))
 
         let kinds = provider.events.map(\.kind)
-        #expect(kinds == [.jobDiscovered, .jobStarted, .jobCompleted])
+        #expect(kinds == [.jobDiscovered, .taskStarted, .taskCompleted])
     }
 }

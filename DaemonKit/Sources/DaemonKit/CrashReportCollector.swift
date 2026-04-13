@@ -3,28 +3,26 @@ import os
 import CrashReporter
 
 public struct CrashReportCollector: Sendable {
-    private let logger = Logger(
-        subsystem: "com.agentic-cookbook.daemon",
-        category: "CrashReportCollector"
-    )
-
+    private let logger: Logger
     private let supportDirectory: URL
     private let diagnosticReportsDirectory: URL
     private let processName: String
 
     public init(
         supportDirectory: URL,
+        processName: String,
+        subsystem: String,
         diagnosticReportsDirectory: URL = FileManager.default.homeDirectoryForCurrentUser
-            .appending(path: "Library/Logs/DiagnosticReports"),
-        processName: String = "agentic-daemon"
+            .appending(path: "Library/Logs/DiagnosticReports")
     ) {
+        self.logger = Logger(subsystem: subsystem, category: "CrashReportCollector")
         self.supportDirectory = supportDirectory
-        self.diagnosticReportsDirectory = diagnosticReportsDirectory
         self.processName = processName
+        self.diagnosticReportsDirectory = diagnosticReportsDirectory
     }
 
     /// Install PLCrashReporter's signal/exception handlers.
-    /// Call once at daemon startup, before any jobs run.
+    /// Call once at daemon startup, before any tasks run.
     public func installCrashHandler() throws {
         let config = PLCrashReporterConfig(
             signalHandlerType: .mach,
@@ -38,14 +36,14 @@ public struct CrashReportCollector: Sendable {
         logger.info("PLCrashReporter handler installed")
     }
 
-    public func collectPendingReports(crashedJobName: String) -> [CrashReport] {
+    public func collectPendingReports(crashedTaskName: String) -> [CrashReport] {
         var reports: [CrashReport] = []
 
-        if let plReport = collectPLCrashReport(crashedJobName: crashedJobName) {
+        if let plReport = collectPLCrashReport(crashedTaskName: crashedTaskName) {
             reports.append(plReport)
         }
 
-        let ipsReports = collectDiagnosticReports(crashedJobName: crashedJobName)
+        let ipsReports = collectDiagnosticReports(crashedTaskName: crashedTaskName)
         reports.append(contentsOf: ipsReports)
 
         return reports
@@ -54,7 +52,7 @@ public struct CrashReportCollector: Sendable {
     /// Check for a pending PLCrashReporter report from a previous crash.
     /// Returns a parsed CrashReport if one exists, nil otherwise.
     /// Purges the pending report after collection.
-    public func collectPLCrashReport(crashedJobName: String) -> CrashReport? {
+    public func collectPLCrashReport(crashedTaskName: String) -> CrashReport? {
         let config = PLCrashReporterConfig(
             signalHandlerType: .mach,
             symbolicationStrategy: []
@@ -89,10 +87,10 @@ public struct CrashReportCollector: Sendable {
             }
         }
 
-        logger.info("Collected PLCrashReporter report for job: \(crashedJobName)")
+        logger.info("Collected PLCrashReporter report for task: \(crashedTaskName)")
 
         return CrashReport(
-            jobName: crashedJobName,
+            taskName: crashedTaskName,
             timestamp: plReport.systemInfo?.timestamp ?? Date.now,
             signal: signal,
             exceptionType: exceptionType,
@@ -102,7 +100,7 @@ public struct CrashReportCollector: Sendable {
         )
     }
 
-    func collectDiagnosticReports(crashedJobName: String) -> [CrashReport] {
+    func collectDiagnosticReports(crashedTaskName: String) -> [CrashReport] {
         let fm = FileManager.default
         guard fm.fileExists(atPath: diagnosticReportsDirectory.path(percentEncoded: false)) else {
             return []
@@ -119,28 +117,17 @@ public struct CrashReportCollector: Sendable {
             return []
         }
 
-        let ipsFiles = contents.filter { $0.pathExtension == "ips" }
-        var reports: [CrashReport] = []
-
-        for file in ipsFiles {
-            if let report = parseIPSFile(file, crashedJobName: crashedJobName) {
-                reports.append(report)
-            }
-        }
-
-        return reports
+        return contents
+            .filter { $0.pathExtension == "ips" }
+            .compactMap { parseIPSFile($0, crashedTaskName: crashedTaskName) }
     }
 
-    func parseIPSFile(_ url: URL, crashedJobName: String) -> CrashReport? {
-        guard let content = try? String(contentsOf: url, encoding: .utf8) else {
-            return nil
-        }
+    func parseIPSFile(_ url: URL, crashedTaskName: String) -> CrashReport? {
+        guard let content = try? String(contentsOf: url, encoding: .utf8) else { return nil }
 
-        // .ips format: line 1 is metadata JSON, remaining lines are crash report JSON
         let lines = content.components(separatedBy: "\n")
         guard lines.count >= 2 else { return nil }
 
-        // Parse metadata (line 1) to check process name
         guard let metadataData = lines[0].data(using: .utf8),
               let metadata = try? JSONSerialization.jsonObject(with: metadataData) as? [String: Any],
               let appName = metadata["app_name"] as? String,
@@ -148,7 +135,6 @@ public struct CrashReportCollector: Sendable {
             return nil
         }
 
-        // Parse crash report (line 2+)
         let reportJSON = lines.dropFirst().joined(separator: "\n")
         guard let reportData = reportJSON.data(using: .utf8),
               let report = try? JSONSerialization.jsonObject(with: reportData) as? [String: Any] else {
@@ -160,10 +146,8 @@ public struct CrashReportCollector: Sendable {
         let signal = exception?["signal"] as? String
         let faultingThread = report["faultingThread"] as? Int
 
-        // Extract stack frames from the faulting thread
         var stackFrames: [CrashReport.StackFrame]?
         if let threads = report["threads"] as? [[String: Any]] {
-            // Find the triggered thread (the one that caused the crash)
             let crashThread = threads.first { ($0["triggered"] as? Bool) == true }
             if let frames = crashThread?["frames"] as? [[String: Any]] {
                 stackFrames = frames.map { frame in
@@ -177,12 +161,11 @@ public struct CrashReportCollector: Sendable {
             }
         }
 
-        // Parse timestamp from metadata
         let timestampStr = metadata["timestamp"] as? String
         let timestamp = Self.parseIPSTimestamp(timestampStr) ?? Date.now
 
         return CrashReport(
-            jobName: crashedJobName,
+            taskName: crashedTaskName,
             timestamp: timestamp,
             signal: signal,
             exceptionType: exceptionType,

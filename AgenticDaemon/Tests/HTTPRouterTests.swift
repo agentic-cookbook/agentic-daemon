@@ -10,9 +10,11 @@ import Foundation
         let stateDir = FileManager.default.temporaryDirectory
             .appending(path: "state-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: stateDir, withIntermediateDirectories: true)
-        let tracker = CrashTracker(stateDir: stateDir)
+        let tracker = CrashTracker(stateDir: stateDir, subsystem: "test")
+        let analytics = LogAnalyticsProvider(subsystem: "test")
+        let scheduler = Scheduler(crashTracker: tracker, analytics: analytics, subsystem: "test")
         let router = HTTPRouter(
-            scheduler: Scheduler(buildDir: FileManager.default.temporaryDirectory),
+            scheduler: scheduler,
             jobRunStore: store,
             crashTracker: tracker,
             startTime: Date()

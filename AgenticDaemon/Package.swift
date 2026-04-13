@@ -11,7 +11,7 @@ let package = Package(
         .library(name: "AgenticJobKit", type: .dynamic, targets: ["AgenticJobKit"])
     ],
     dependencies: [
-        .package(url: "git@github.com:microsoft/plcrashreporter.git", from: "1.8.0")
+        .package(path: "../DaemonKit")
     ],
     targets: [
         .target(
@@ -19,10 +19,16 @@ let package = Package(
             path: "Sources/AgenticJobKit"
         ),
         .target(
+            name: "AgenticXPCProtocol",
+            dependencies: ["DaemonKit"],
+            path: "Sources/AgenticXPCProtocol"
+        ),
+        .target(
             name: "AgenticDaemonLib",
             dependencies: [
                 "AgenticJobKit",
-                .product(name: "CrashReporter", package: "plcrashreporter")
+                "AgenticXPCProtocol",
+                "DaemonKit"
             ],
             path: "Sources/AgenticDaemonLib",
             linkerSettings: [.linkedLibrary("sqlite3")]
@@ -32,10 +38,26 @@ let package = Package(
             dependencies: ["AgenticDaemonLib"],
             path: "Sources/CLI"
         ),
+        .target(
+            name: "AgenticMenuBarLib",
+            dependencies: ["AgenticXPCProtocol", "DaemonKit"],
+            path: "Sources/AgenticMenuBarLib"
+        ),
+        .executableTarget(
+            name: "AgenticMenuBar",
+            dependencies: ["AgenticMenuBarLib"],
+            path: "Sources/AgenticMenuBar"
+        ),
         .testTarget(
             name: "AgenticDaemonTests",
             dependencies: ["AgenticDaemonLib"],
-            path: "Tests"
+            path: "Tests",
+            exclude: ["AgenticMenuBarTests"]
+        ),
+        .testTarget(
+            name: "AgenticMenuBarTests",
+            dependencies: ["AgenticMenuBarLib"],
+            path: "Tests/AgenticMenuBarTests"
         )
     ]
 )
