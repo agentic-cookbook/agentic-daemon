@@ -22,13 +22,17 @@ public struct DaemonConfiguration: Sendable {
     /// How often the scheduler tick fires, in seconds. Default 1.0.
     public let tickInterval: TimeInterval
 
+    /// HTTP server port for management API. Pass nil to disable HTTP.
+    public let httpPort: UInt16?
+
     public init(
         identifier: String,
         supportDirectory: URL,
         machServiceName: String? = nil,
         crashReportProcessName: String? = nil,
         crashRetentionDays: Int = 30,
-        tickInterval: TimeInterval = 1.0
+        tickInterval: TimeInterval = 1.0,
+        httpPort: UInt16? = nil
     ) {
         self.identifier = identifier
         self.supportDirectory = supportDirectory
@@ -36,6 +40,7 @@ public struct DaemonConfiguration: Sendable {
         self.crashReportProcessName = crashReportProcessName ?? identifier.components(separatedBy: ".").last ?? identifier
         self.crashRetentionDays = crashRetentionDays
         self.tickInterval = tickInterval
+        self.httpPort = httpPort
     }
 
     /// Directory for crash report JSON files.

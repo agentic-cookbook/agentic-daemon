@@ -53,5 +53,16 @@ struct DaemonConfigurationTests {
         #expect(config.machServiceName == nil)
         #expect(config.crashRetentionDays == 30)
         #expect(config.tickInterval == 1.0)
+        #expect(config.httpPort == nil)
+    }
+
+    @Test("httpPort stores explicit value")
+    func httpPortExplicit() {
+        let config = DaemonConfiguration(
+            identifier: "com.example.test",
+            supportDirectory: URL(fileURLWithPath: "/tmp/test"),
+            httpPort: 8080
+        )
+        #expect(config.httpPort == 8080)
     }
 }
