@@ -16,6 +16,7 @@ public final class DaemonController: @unchecked Sendable {
     private let crashReportStore: CrashReportStore
     private let jobRunStore: JobRunStore
     private let httpServer: HTTPServer
+    private let xpcService: XPCService
     private let analytics: any AnalyticsProvider
     private var watcher: DirectoryWatcher?
     private var running = true
@@ -46,6 +47,12 @@ public final class DaemonController: @unchecked Sendable {
             startTime: Date()
         )
         httpServer = HTTPServer(router: router)
+        xpcService = XPCService(
+            scheduler: scheduler,
+            jobRunStore: jobRunStore,
+            crashTracker: crashTracker,
+            startTime: Date()
+        )
     }
 
     public func run() async {
@@ -58,6 +65,7 @@ public final class DaemonController: @unchecked Sendable {
         } catch {
             logger.error("Failed to start HTTP server: \(error)")
         }
+        xpcService.start()
 
         // Install crash handler for future crashes
         do {
@@ -118,6 +126,7 @@ public final class DaemonController: @unchecked Sendable {
         logger.info("Shutdown requested")
         running = false
         httpServer.stop()
+        xpcService.stop()
     }
 
     private func createDirectories() {
