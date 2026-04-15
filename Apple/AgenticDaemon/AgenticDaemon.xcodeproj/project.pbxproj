@@ -47,10 +47,10 @@
 		6E75D7E3811AE514AEA743AF /* JobResponse.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE110EB924ECEF020864B5CE /* JobResponse.swift */; };
 		71BF31C4FF13A05D3B665FC8 /* HTTPResponseTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63744C3DD4FEF94AA0207E93 /* HTTPResponseTests.swift */; };
 		7236C2DF70FB69632F86E09C /* XPCHandlerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0EB275310DD20859F539D45D /* XPCHandlerTests.swift */; };
+		75E4EFD2C63B10E53E73DB6A /* AgenticJobKit.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = D27A00C0D13F8E0EFB11CE4C /* AgenticJobKit.dylib */; };
 		7861ECC22CC68F97C75EFC0F /* Scheduler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8EEDE2B9E5011F5017A90165 /* Scheduler.swift */; };
 		79DEF259C5783809AAD77CBC /* HTTPServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2634EF9222F61D76E2B427EA /* HTTPServer.swift */; };
 		7AB7101103990EBFFF4D0847 /* HTTPRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD926F5C00BF7896680B3F84 /* HTTPRequest.swift */; };
-		7E4D0FE526B2DD11D7977C47 /* libAgenticJobKit.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 4CD10ECC3B93EC20A999FC3D /* libAgenticJobKit.a */; };
 		81F794243355C23A02AFD6FB /* AgenticDaemonXPC.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61F4D8D052B937D4C94E0D8D /* AgenticDaemonXPC.swift */; };
 		83CE275A3C93B366A1A8B62C /* JobRunStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25163C06CCE275187A3ECC72 /* JobRunStoreTests.swift */; };
 		83EBE1014D3E9F7FB8F8BE54 /* libAgenticMenuBarLib.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 66B82DFE6BCEE6DC313875EB /* libAgenticMenuBarLib.a */; };
@@ -84,7 +84,6 @@
 		B9D155142B6EE7340D4A5E94 /* DaemonHTTPRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4AA2D3FD0713A2EA190B3BF1 /* DaemonHTTPRouter.swift */; };
 		BA97209AA077C76954075B95 /* libAgenticMenuBarLib.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 66B82DFE6BCEE6DC313875EB /* libAgenticMenuBarLib.a */; };
 		BDD612BBD1CB536665A432BB /* JobLoaderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BE642E47568364007369987 /* JobLoaderTests.swift */; };
-		C433FD48216A7FE9C2EA4782 /* libAgenticJobKit.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 4CD10ECC3B93EC20A999FC3D /* libAgenticJobKit.a */; };
 		C973D23F478176466C0EEE60 /* libAgenticXPCProtocol.a in Frameworks */ = {isa = PBXBuildFile; fileRef = FCDC9630A58842D06C1D78E9 /* libAgenticXPCProtocol.a */; };
 		C98584C95C32ADF683F4D88D /* libAgenticXPCProtocol.a in Frameworks */ = {isa = PBXBuildFile; fileRef = FCDC9630A58842D06C1D78E9 /* libAgenticXPCProtocol.a */; };
 		C992C6CCD4EB4A78BEE20062 /* AgenticJob.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA0CFCADB626C2D69EADFAD7 /* AgenticJob.swift */; };
@@ -99,6 +98,7 @@
 		EA5AF91E5418742B47594535 /* HTTPResponse.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACDA197F5E8E3A1EDEC0F3B2 /* HTTPResponse.swift */; };
 		EE4C6180CD5EAD5A41910A2A /* MenuBuilderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE2CB043D54D68C23E700B3B /* MenuBuilderTests.swift */; };
 		EFD30846120B7168BBD08442 /* CrashTrackerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24C6B885471933D44FC80C45 /* CrashTrackerTests.swift */; };
+		F195B18516F288566ED22A52 /* AgenticJobKit.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = D27A00C0D13F8E0EFB11CE4C /* AgenticJobKit.dylib */; };
 		FB4D59CD80D09D8E91A55A9B /* DaemonKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 961416DD2638BD6953EF05E7 /* DaemonKit.framework */; };
 		FB60F974D1519C454A883797 /* DaemonKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 961416DD2638BD6953EF05E7 /* DaemonKit.framework */; };
 		FE626A2A983650A3AF8583C7 /* MenuBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 627AA99E9EACA2E96E5CAB70 /* MenuBuilder.swift */; };
@@ -320,7 +320,6 @@
 		4A7A1EEDC8F75F028135544F /* DaemonClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DaemonClient.swift; sourceTree = "<group>"; };
 		4AA2D3FD0713A2EA190B3BF1 /* DaemonHTTPRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DaemonHTTPRouter.swift; sourceTree = "<group>"; };
 		4CA07E0246DF475294EF0CB7 /* libsqlite3.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libsqlite3.tbd; path = usr/lib/libsqlite3.tbd; sourceTree = SDKROOT; };
-		4CD10ECC3B93EC20A999FC3D /* libAgenticJobKit.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libAgenticJobKit.a; sourceTree = BUILT_PRODUCTS_DIR; };
 		4D39CE3AC6EE73920B3C2585 /* BackoffTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackoffTests.swift; sourceTree = "<group>"; };
 		50E167AD9A217CD9DF6971CA /* CrashDetailWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CrashDetailWindow.swift; sourceTree = "<group>"; };
 		5367E17D30EF87404EE547DD /* JobRunStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JobRunStore.swift; sourceTree = "<group>"; };
@@ -360,6 +359,7 @@
 		CE9E75CEFCD745F8D506A50D /* ScriptTaskSource.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScriptTaskSource.swift; sourceTree = "<group>"; };
 		CF1D14FC42528C83D536002D /* DaemonConnection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DaemonConnection.swift; sourceTree = "<group>"; };
 		D0FD6E9197273B5A852465E6 /* DirectoryWatcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DirectoryWatcher.swift; sourceTree = "<group>"; };
+		D27A00C0D13F8E0EFB11CE4C /* AgenticJobKit.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; includeInIndex = 0; path = AgenticJobKit.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
 		D5D044498CE8F5C522B16D48 /* agentic-daemon */ = {isa = PBXFileReference; includeInIndex = 0; path = "agentic-daemon"; sourceTree = BUILT_PRODUCTS_DIR; };
 		D76BA0E080AC25D7BB2CF53E /* DaemonHTTPClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DaemonHTTPClient.swift; sourceTree = "<group>"; };
 		DCDDBC3F0F12F7EB1AA62E75 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
@@ -383,7 +383,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				A9CFA4DD426C37881E5F452A /* libAgenticDaemonLib.a in Frameworks */,
-				C433FD48216A7FE9C2EA4782 /* libAgenticJobKit.a in Frameworks */,
+				75E4EFD2C63B10E53E73DB6A /* AgenticJobKit.dylib in Frameworks */,
 				03C37C3D49BB4821339A73F9 /* libAgenticXPCProtocol.a in Frameworks */,
 				FB60F974D1519C454A883797 /* DaemonKit.framework in Frameworks */,
 				5C24E185A61C4A0410A0C3B2 /* libsqlite3.tbd in Frameworks */,
@@ -413,7 +413,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				87259241CAF936A4A13EFD86 /* libAgenticDaemonLib.a in Frameworks */,
-				7E4D0FE526B2DD11D7977C47 /* libAgenticJobKit.a in Frameworks */,
+				F195B18516F288566ED22A52 /* AgenticJobKit.dylib in Frameworks */,
 				C973D23F478176466C0EEE60 /* libAgenticXPCProtocol.a in Frameworks */,
 				2766DA5CE60C053E5259E600 /* DaemonKit.framework in Frameworks */,
 				438CF963BE9DCA8ACBDA051E /* libsqlite3.tbd in Frameworks */,
@@ -488,12 +488,12 @@
 			children = (
 				D5D044498CE8F5C522B16D48 /* agentic-daemon */,
 				453A83445DC8E3CAE1D60051 /* AgenticDaemonTests.xctest */,
+				D27A00C0D13F8E0EFB11CE4C /* AgenticJobKit.dylib */,
 				36642F15E736B4A49E632BC9 /* AgenticMenuBar */,
 				0C7B993B9F73DE60D1EB67D0 /* AgenticMenuBarTests.xctest */,
 				961416DD2638BD6953EF05E7 /* DaemonKit.framework */,
 				9E30C37E7CC949FCE432D3D5 /* DaemonKitTests.xctest */,
 				64EAD076485CE4ED26B4A085 /* libAgenticDaemonLib.a */,
-				4CD10ECC3B93EC20A999FC3D /* libAgenticJobKit.a */,
 				66B82DFE6BCEE6DC313875EB /* libAgenticMenuBarLib.a */,
 				FCDC9630A58842D06C1D78E9 /* libAgenticXPCProtocol.a */,
 			);
@@ -873,7 +873,6 @@
 			buildConfigurationList = CAE9645502318899C021894E /* Build configuration list for PBXNativeTarget "AgenticJobKit" */;
 			buildPhases = (
 				008D2ACD421AE4E35FBDF6D5 /* Sources */,
-				675459D974A1F1601C2B0656 /* Copy Swift Objective-C Interface Header */,
 			);
 			buildRules = (
 			);
@@ -883,8 +882,8 @@
 			packageProductDependencies = (
 			);
 			productName = AgenticJobKit;
-			productReference = 4CD10ECC3B93EC20A999FC3D /* libAgenticJobKit.a */;
-			productType = "com.apple.product-type.library.static";
+			productReference = D27A00C0D13F8E0EFB11CE4C /* AgenticJobKit.dylib */;
+			productType = "com.apple.product-type.library.dynamic";
 		};
 		FEE9DFAB1EB490416C372A64 /* AgenticMenuBarTests */ = {
 			isa = PBXNativeTarget;
@@ -968,22 +967,6 @@
 			shellScript = "ditto \"${SCRIPT_INPUT_FILE_0}\" \"${SCRIPT_OUTPUT_FILE_0}\"\n";
 		};
 		2DB56E95F8DE9D052965227C /* Copy Swift Objective-C Interface Header */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputPaths = (
-				"$(DERIVED_SOURCES_DIR)/$(SWIFT_OBJC_INTERFACE_HEADER_NAME)",
-			);
-			name = "Copy Swift Objective-C Interface Header";
-			outputPaths = (
-				"$(BUILT_PRODUCTS_DIR)/include/$(PRODUCT_MODULE_NAME)/$(SWIFT_OBJC_INTERFACE_HEADER_NAME)",
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "ditto \"${SCRIPT_INPUT_FILE_0}\" \"${SCRIPT_OUTPUT_FILE_0}\"\n";
-		};
-		675459D974A1F1601C2B0656 /* Copy Swift Objective-C Interface Header */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -1614,6 +1597,7 @@
 			buildSettings = {
 				COMBINE_HIDPI_IMAGES = YES;
 				DEFINES_MODULE = YES;
+				EXECUTABLE_PREFIX = lib;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -1651,6 +1635,7 @@
 			buildSettings = {
 				COMBINE_HIDPI_IMAGES = YES;
 				DEFINES_MODULE = YES;
+				EXECUTABLE_PREFIX = lib;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",

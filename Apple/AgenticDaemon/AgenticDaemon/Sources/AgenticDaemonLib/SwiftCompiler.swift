@@ -9,9 +9,15 @@ public struct SwiftCompiler: Sendable {
 
     private let buildDir: URL
 
-    /// moduleSearchPath: directory containing AgenticJobKit.swiftmodule
+    /// moduleSearchPath: directory containing AgenticJobKit.swiftmodule.
+    /// SwiftPM places it in <buildDir>/Modules/; xcodebuild places it directly
+    /// in <buildDir>/. Prefer the SPM layout if present, else fall back.
     var moduleSearchPath: String {
-        buildDir.appending(path: "Modules").path(percentEncoded: false)
+        let modulesDir = buildDir.appending(path: "Modules")
+        if FileManager.default.fileExists(atPath: modulesDir.path(percentEncoded: false)) {
+            return modulesDir.path(percentEncoded: false)
+        }
+        return buildDir.path(percentEncoded: false)
     }
 
     /// librarySearchPath: directory containing libAgenticJobKit.dylib

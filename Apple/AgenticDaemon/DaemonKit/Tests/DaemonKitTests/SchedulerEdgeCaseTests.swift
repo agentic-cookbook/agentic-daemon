@@ -166,10 +166,14 @@ struct SchedulerEdgeCaseTests {
 
         // Run task A (which triggers B)
         await scheduler.tick()
-        try? await Task.sleep(for: .milliseconds(300))
 
-        // After A completes, B should have nextRun set to ~now
-        let b = await scheduler.scheduledTask(named: "b")
+        // After A completes, B should have nextRun set to ~now.
+        // Poll rather than sleep-once, so this doesn't flake under load.
+        var b = await scheduler.scheduledTask(named: "b")
+        for _ in 0..<40 where (b?.nextRun.timeIntervalSinceNow ?? 999) > 1.0 {
+            try? await Task.sleep(for: .milliseconds(50))
+            b = await scheduler.scheduledTask(named: "b")
+        }
         #expect(b?.nextRun.timeIntervalSinceNow ?? 999 < 1.0)
     }
 

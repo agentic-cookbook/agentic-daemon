@@ -37,7 +37,7 @@ targets:
         SKIP_INSTALL: YES
 
   AgenticJobKit:
-    type: library.static
+    type: library.dynamic
     platform: macOS
     sources:
       - path: AgenticDaemon/Sources/AgenticJobKit
@@ -45,6 +45,7 @@ targets:
       base:
         DEFINES_MODULE: YES
         SKIP_INSTALL: YES
+        EXECUTABLE_PREFIX: lib
 
   AgenticXPCProtocol:
     type: library.static

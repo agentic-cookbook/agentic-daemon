@@ -70,9 +70,21 @@ func validJobSource(body: String = "") -> String {
     """
 }
 
-/// Finds the SPM build directory containing AgenticJobKit artifacts.
-/// Uses #filePath to locate Tests/ → package root → .build/debug/.
+/// Finds the build directory containing AgenticJobKit artifacts.
+/// Under xcodebuild, AgenticJobKit.swiftmodule + libAgenticJobKit.dylib live
+/// alongside the running xctest bundle in Build/Products/<Config>/. Under
+/// `swift test`, they live at <package root>/.build/debug/.
 func findBuildDir(file: String = #filePath) -> URL {
+    if let products = Bundle.allBundles
+        .lazy
+        .map({ $0.bundleURL.deletingLastPathComponent() })
+        .first(where: { dir in
+            let fm = FileManager.default
+            return fm.fileExists(atPath: dir.appending(path: "AgenticJobKit.swiftmodule").path)
+                || fm.fileExists(atPath: dir.appending(path: "libAgenticJobKit.dylib").path)
+        }) {
+        return products
+    }
     let testsDir = URL(fileURLWithPath: file).deletingLastPathComponent()
     let packageRoot = testsDir.deletingLastPathComponent()
     return packageRoot.appending(path: ".build/debug")
