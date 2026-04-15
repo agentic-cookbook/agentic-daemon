@@ -1,6 +1,6 @@
 import Foundation
 import os
-import CrashReporter
+@_implementationOnly import CrashReporter
 
 public struct CrashReportCollector: Sendable {
     private let logger: Logger

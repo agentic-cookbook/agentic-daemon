@@ -1,8 +1,11 @@
-.DS_Store
-.build/
-.swiftpm/
-.superpowers/
-.claude/worktrees/
 
+.build/
+.claude/worktrees/
+.DS_Store
+.superpowers/
+.swiftpm/
+*.xcodeproj/project.xcworkspace/xcuserdata/
 # graphify output (generated)
+build/
 graphify-out/
+xcuserdata/

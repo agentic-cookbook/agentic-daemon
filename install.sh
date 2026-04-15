@@ -10,13 +10,31 @@ DAEMON_PLIST_SRC="$SCRIPT_DIR/${DAEMON_LABEL}.plist"
 DAEMON_PLIST_DST="$HOME/Library/LaunchAgents/${DAEMON_LABEL}.plist"
 MENUBAR_PLIST_SRC="$SCRIPT_DIR/${MENUBAR_LABEL}.plist"
 MENUBAR_PLIST_DST="$HOME/Library/LaunchAgents/${MENUBAR_LABEL}.plist"
-PKG_DIR="$SCRIPT_DIR/AgenticDaemon"
+PROJECT_DIR="$SCRIPT_DIR/Apple/AgenticDaemon"
+XCODEPROJ="$PROJECT_DIR/AgenticDaemon.xcodeproj"
+BUILD_DIR="$PROJECT_DIR/build"
 
-echo "Building agentic-daemon and agentic-menubar..."
-cd "$PKG_DIR"
-swift build -c release
+if [[ ! -d "$XCODEPROJ" ]]; then
+    if command -v xcodegen >/dev/null 2>&1; then
+        echo "Generating Xcode project from project.yml..."
+        (cd "$PROJECT_DIR" && xcodegen generate)
+    else
+        echo "error: AgenticDaemon.xcodeproj not found and xcodegen is not installed." >&2
+        echo "Install XcodeGen (brew install xcodegen) or commit the generated project." >&2
+        exit 1
+    fi
+fi
 
-BIN_PATH=$(swift build -c release --show-bin-path)
+echo "Building agentic-daemon and AgenticMenuBar (Release)..."
+xcodebuild \
+    -project "$XCODEPROJ" \
+    -scheme AgenticDaemon \
+    -configuration Release \
+    -derivedDataPath "$BUILD_DIR" \
+    -quiet \
+    build
+
+BIN_PATH="$BUILD_DIR/Build/Products/Release"
 DAEMON_BINARY="$BIN_PATH/agentic-daemon"
 MENUBAR_BINARY="$BIN_PATH/AgenticMenuBar"
 

@@ -1,0 +1,159 @@
+name: AgenticDaemon
+options:
+  bundleIdPrefix: com.agentic-cookbook
+  deploymentTarget:
+    macOS: "14.0"
+  createIntermediateGroups: true
+  generateEmptyDirectories: true
+
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    SWIFT_STRICT_CONCURRENCY: complete
+    MACOSX_DEPLOYMENT_TARGET: "14.0"
+    CLANG_ENABLE_MODULES: YES
+    ENABLE_USER_SCRIPT_SANDBOXING: NO
+    GENERATE_INFOPLIST_FILE: YES
+    SWIFT_ENABLE_EXPLICIT_MODULES: NO
+    CLANG_ENABLE_EXPLICIT_MODULES: NO
+
+packages:
+  plcrashreporter:
+    url: https://github.com/microsoft/plcrashreporter.git
+    from: "1.8.0"
+
+targets:
+  DaemonKit:
+    type: framework
+    platform: macOS
+    sources:
+      - path: DaemonKit/Sources/DaemonKit
+    dependencies:
+      - package: plcrashreporter
+        product: CrashReporter
+    settings:
+      base:
+        DEFINES_MODULE: YES
+        SKIP_INSTALL: YES
+
+  AgenticJobKit:
+    type: library.static
+    platform: macOS
+    sources:
+      - path: AgenticDaemon/Sources/AgenticJobKit
+    settings:
+      base:
+        DEFINES_MODULE: YES
+        SKIP_INSTALL: YES
+
+  AgenticXPCProtocol:
+    type: library.static
+    platform: macOS
+    sources:
+      - path: AgenticDaemon/Sources/AgenticXPCProtocol
+    dependencies:
+      - target: DaemonKit
+    settings:
+      base:
+        DEFINES_MODULE: YES
+        SKIP_INSTALL: YES
+
+  AgenticDaemonLib:
+    type: library.static
+    platform: macOS
+    sources:
+      - path: AgenticDaemon/Sources/AgenticDaemonLib
+    dependencies:
+      - target: AgenticJobKit
+      - target: AgenticXPCProtocol
+      - target: DaemonKit
+      - sdk: libsqlite3.tbd
+    settings:
+      base:
+        DEFINES_MODULE: YES
+        SKIP_INSTALL: YES
+
+  AgenticMenuBarLib:
+    type: library.static
+    platform: macOS
+    sources:
+      - path: AgenticDaemon/Sources/AgenticMenuBarLib
+    dependencies:
+      - target: AgenticXPCProtocol
+      - target: DaemonKit
+    settings:
+      base:
+        DEFINES_MODULE: YES
+        SKIP_INSTALL: YES
+
+  agentic-daemon:
+    type: tool
+    platform: macOS
+    sources:
+      - path: AgenticDaemon/Sources/CLI
+    dependencies:
+      - target: AgenticDaemonLib
+      - target: AgenticJobKit
+      - target: AgenticXPCProtocol
+      - target: DaemonKit
+      - sdk: libsqlite3.tbd
+    settings:
+      base:
+        PRODUCT_NAME: agentic-daemon
+
+  AgenticMenuBar:
+    type: tool
+    platform: macOS
+    sources:
+      - path: AgenticDaemon/Sources/AgenticMenuBar
+    dependencies:
+      - target: AgenticMenuBarLib
+      - target: AgenticXPCProtocol
+      - target: DaemonKit
+    settings:
+      base:
+        PRODUCT_NAME: AgenticMenuBar
+
+  DaemonKitTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: DaemonKit/Tests/DaemonKitTests
+    dependencies:
+      - target: DaemonKit
+
+  AgenticDaemonTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: AgenticDaemon/Tests
+        excludes:
+          - "AgenticMenuBarTests/**"
+    dependencies:
+      - target: AgenticDaemonLib
+      - target: AgenticJobKit
+      - target: AgenticXPCProtocol
+      - target: DaemonKit
+      - sdk: libsqlite3.tbd
+
+  AgenticMenuBarTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: AgenticDaemon/Tests/AgenticMenuBarTests
+    dependencies:
+      - target: AgenticMenuBarLib
+      - target: AgenticXPCProtocol
+      - target: DaemonKit
+
+schemes:
+  AgenticDaemon:
+    build:
+      targets:
+        agentic-daemon: all
+        AgenticMenuBar: all
+    test:
+      targets:
+        - DaemonKitTests
+        - AgenticDaemonTests
+        - AgenticMenuBarTests
