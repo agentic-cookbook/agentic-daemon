@@ -9,3 +9,6 @@
 build/
 graphify-out/
 xcuserdata/
+
+# Claude Code scheduled tasks runtime lock
+.claude/scheduled_tasks.lock
