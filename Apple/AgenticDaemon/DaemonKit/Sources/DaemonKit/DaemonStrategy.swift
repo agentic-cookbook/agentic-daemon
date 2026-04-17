@@ -127,7 +127,11 @@ public struct WorkUnitSnapshot: Sendable, Codable {
         self.lastMessage = lastMessage
     }
 
-    public enum WorkUnitState: String, Sendable, Codable {
+    /// Marked `@frozen` because DaemonKit uses `BUILD_LIBRARY_FOR_DISTRIBUTION`
+    /// — without `@frozen`, switch statements on this enum require
+    /// `@unknown default`, which we don't want for a closed, stable set
+    /// of states.
+    @frozen public enum WorkUnitState: String, Sendable, Codable {
         case idle
         case running
         case disabled

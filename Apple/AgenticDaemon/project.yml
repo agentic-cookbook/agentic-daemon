@@ -35,6 +35,10 @@ targets:
       base:
         DEFINES_MODULE: YES
         SKIP_INSTALL: YES
+        # Library evolution is required so `@_implementationOnly` imports
+        # (CrashReporter inside CrashReportCollector) don't produce a
+        # runtime-instability warning.
+        BUILD_LIBRARY_FOR_DISTRIBUTION: YES
 
   AgenticJobKit:
     type: library.dynamic

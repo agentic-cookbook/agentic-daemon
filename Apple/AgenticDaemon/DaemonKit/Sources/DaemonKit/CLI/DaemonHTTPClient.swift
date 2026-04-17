@@ -25,15 +25,25 @@ public struct DaemonHTTPClient: Sendable {
         var request = URLRequest(url: url)
         request.timeoutInterval = timeout
         let sem = DispatchSemaphore(value: 0)
-        var result: Data?
+        let box = ResultBox()
         let task = URLSession.shared.dataTask(with: request) { data, response, _ in
             if let http = response as? HTTPURLResponse, http.statusCode == 200 {
-                result = data
+                box.setValue(data)
             }
             sem.signal()
         }
         task.resume()
         sem.wait()
-        return result
+        return box.value
     }
+}
+
+/// Lock-protected container for bridging URLSession's `@Sendable` completion
+/// back to a synchronous caller without tripping Swift 6's capture-mutation
+/// check.
+private final class ResultBox: @unchecked Sendable {
+    private let lock = NSLock()
+    private var _value: Data?
+    var value: Data? { lock.withLock { _value } }
+    func setValue(_ v: Data?) { lock.withLock { _value = v } }
 }

@@ -78,7 +78,6 @@ public final class AgenticDaemonController: @unchecked Sendable {
     private func makeXPCHandler() -> XPCHandler {
         let engine = self.engine
         let strategy = self.strategy
-        let taskSource = self.taskSource
         let jobsDir = self.jobsDirectory
 
         return XPCHandler(dependencies: .init(

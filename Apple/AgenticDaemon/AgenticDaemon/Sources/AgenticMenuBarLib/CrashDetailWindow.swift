@@ -5,7 +5,8 @@ import DaemonKit
 
 /// Opens a non-modal window showing the full content of a crash report.
 /// Retains itself until the window is closed.
-public final class CrashDetailWindow: NSObject, NSWindowDelegate, @unchecked Sendable {
+@MainActor
+public final class CrashDetailWindow: NSObject, NSWindowDelegate {
 
     private let window: NSWindow
 

@@ -139,7 +139,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
                 }
             },
             onQuit: {
-                NSApp.terminate(nil)
+                Task { @MainActor in NSApp.terminate(nil) }
             }
         )
     }
