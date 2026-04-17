@@ -69,11 +69,31 @@ public struct StrategySnapshot: Sendable, Codable {
     /// client-defined value. Consumers should treat unknown kinds as opaque.
     public let kind: String
     public let workUnits: [WorkUnitSnapshot]
+    /// Child snapshots for composite strategies. Empty for leaf strategies.
+    public let children: [StrategySnapshot]
 
-    public init(name: String, kind: String, workUnits: [WorkUnitSnapshot]) {
+    public init(
+        name: String,
+        kind: String,
+        workUnits: [WorkUnitSnapshot],
+        children: [StrategySnapshot] = []
+    ) {
         self.name = name
         self.kind = kind
         self.workUnits = workUnits
+        self.children = children
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        name = try c.decode(String.self, forKey: .name)
+        kind = try c.decode(String.self, forKey: .kind)
+        workUnits = try c.decode([WorkUnitSnapshot].self, forKey: .workUnits)
+        children = try c.decodeIfPresent([StrategySnapshot].self, forKey: .children) ?? []
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case name, kind, workUnits, children
     }
 }
 

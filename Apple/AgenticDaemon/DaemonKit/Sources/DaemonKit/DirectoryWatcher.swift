@@ -5,12 +5,19 @@ public final class DirectoryWatcher: Sendable {
     private let logger: Logger
     private let directory: URL
     private let onChange: @Sendable () -> Void
+    private let debounceInterval: TimeInterval
     private let watcherState = WatcherState()
 
-    public init(directory: URL, subsystem: String, onChange: @escaping @Sendable () -> Void) {
+    public init(
+        directory: URL,
+        subsystem: String,
+        debounceInterval: TimeInterval = 1.0,
+        onChange: @escaping @Sendable () -> Void
+    ) {
         self.logger = Logger(subsystem: subsystem, category: "DirectoryWatcher")
         self.directory = directory
         self.onChange = onChange
+        self.debounceInterval = debounceInterval
     }
 
     public func start() {
@@ -29,9 +36,10 @@ public final class DirectoryWatcher: Sendable {
 
         let onChange = self.onChange
         let state = self.watcherState
+        let debounceInterval = self.debounceInterval
 
         source.setEventHandler {
-            state.debounce { onChange() }
+            state.debounce(interval: debounceInterval) { onChange() }
         }
 
         source.setCancelHandler { close(fd) }
@@ -56,12 +64,12 @@ private final class WatcherState: Sendable {
         lock.withLock { self.source = source }
     }
 
-    func debounce(action: @escaping () -> Void) {
+    func debounce(interval: TimeInterval, action: @escaping () -> Void) {
         lock.withLock {
             debounceWork?.cancel()
             let work = DispatchWorkItem(block: action)
             debounceWork = work
-            DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + 1.0, execute: work)
+            DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + interval, execute: work)
         }
     }
 
