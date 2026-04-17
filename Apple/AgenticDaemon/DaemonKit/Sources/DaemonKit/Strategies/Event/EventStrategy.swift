@@ -23,6 +23,11 @@ public final class EventStrategy: DaemonStrategy, @unchecked Sendable {
     private let trigger: Trigger
     private let handler: any EventHandler
 
+    /// Optional SSE broadcaster. When set, the strategy's `/events/stream`
+    /// HTTP endpoint (via ``StrategyHTTPEndpoints``) upgrades connections
+    /// to this broadcaster. Nil disables the endpoint.
+    public let broadcaster: SSEBroadcaster?
+
     private let state = OSAllocatedUnfairLock(initialState: State())
 
     private struct State {
@@ -37,11 +42,13 @@ public final class EventStrategy: DaemonStrategy, @unchecked Sendable {
     public init(
         name: String = "event",
         trigger: Trigger,
-        handler: any EventHandler
+        handler: any EventHandler,
+        broadcaster: SSEBroadcaster? = nil
     ) {
         self.name = name
         self.trigger = trigger
         self.handler = handler
+        self.broadcaster = broadcaster
     }
 
     public func start(context: DaemonContext) async throws {

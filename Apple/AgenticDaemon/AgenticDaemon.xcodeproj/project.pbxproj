@@ -36,6 +36,7 @@
 		4B83FF73FF0F4C94DFD7E699 /* JobDiscoveryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98F3ACE328C3747A2F74E895 /* JobDiscoveryTests.swift */; };
 		4DB82F27721142DEA3A1B2D5 /* HTTPRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C93D3ABF0C99C3F4AFE13A7 /* HTTPRouter.swift */; };
 		4ED2A7E50EC38FE1FEC34213 /* CompositeStrategy.swift in Sources */ = {isa = PBXBuildFile; fileRef = CEBBE25F0C99C36C2652AB9C /* CompositeStrategy.swift */; };
+		50A16A28CF4A7075EC15BBB3 /* EventStrategyEndpoints.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33EFBA9D2ADF84F6FB51973B /* EventStrategyEndpoints.swift */; };
 		551BF45FBD6603915C36FCE9 /* DaemonKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 961416DD2638BD6953EF05E7 /* DaemonKit.framework */; };
 		5666B79E03652739BA46BBFB /* EventStrategyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47C08F6788DB0F9C01214714 /* EventStrategyTests.swift */; };
 		58529A3D746D5E59D9BECE08 /* BackoffTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D39CE3AC6EE73920B3C2585 /* BackoffTests.swift */; };
@@ -104,13 +105,17 @@
 		D1589AEDD0CB7A73D4AC4E14 /* DaemonKit.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 961416DD2638BD6953EF05E7 /* DaemonKit.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		D2AA05E57236F1F4CF2295E1 /* BackoffTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B9608FBDC081CCFBA50DE27 /* BackoffTests.swift */; };
 		D32B47D48B24B5F3C3CA9FE1 /* TaskProtocols.swift in Sources */ = {isa = PBXBuildFile; fileRef = ADF250116FD95ECD27B1BDC8 /* TaskProtocols.swift */; };
+		D55893B7CEACC8A3B28A042D /* StrategyEndpointsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 13568372D2F1C785DC23FC6B /* StrategyEndpointsTests.swift */; };
 		D819CBA4566E690EBF9FE191 /* DaemonHTTPClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = D76BA0E080AC25D7BB2CF53E /* DaemonHTTPClient.swift */; };
+		D949E1875C89322B4CB7DD12 /* DaemonHealthRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4320829358C3B9A3479B4D66 /* DaemonHealthRouter.swift */; };
+		DD3FB7E157A81057BC964454 /* TimingStrategyEndpoints.swift in Sources */ = {isa = PBXBuildFile; fileRef = 387082F7FAE02633E37E5997 /* TimingStrategyEndpoints.swift */; };
 		DDF01A76E94873C64DF33026 /* DaemonConfigurationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3648DADBC639D34762E6778 /* DaemonConfigurationTests.swift */; };
 		E2E97B86D3769B95E9F67591 /* Exports.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6261FA876B22A46C9E2A3ED /* Exports.swift */; };
 		EA5AF91E5418742B47594535 /* HTTPResponse.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACDA197F5E8E3A1EDEC0F3B2 /* HTTPResponse.swift */; };
 		EE4C6180CD5EAD5A41910A2A /* MenuBuilderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE2CB043D54D68C23E700B3B /* MenuBuilderTests.swift */; };
 		EFD30846120B7168BBD08442 /* CrashTrackerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24C6B885471933D44FC80C45 /* CrashTrackerTests.swift */; };
 		F195B18516F288566ED22A52 /* AgenticJobKit.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = D27A00C0D13F8E0EFB11CE4C /* AgenticJobKit.dylib */; };
+		F8599FD26AC1A93BBF187E54 /* StrategyHTTPEndpoints.swift in Sources */ = {isa = PBXBuildFile; fileRef = 470987969595CA635E8D54B9 /* StrategyHTTPEndpoints.swift */; };
 		FB4D59CD80D09D8E91A55A9B /* DaemonKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 961416DD2638BD6953EF05E7 /* DaemonKit.framework */; };
 		FB60F974D1519C454A883797 /* DaemonKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 961416DD2638BD6953EF05E7 /* DaemonKit.framework */; };
 		FE626A2A983650A3AF8583C7 /* MenuBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 627AA99E9EACA2E96E5CAB70 /* MenuBuilder.swift */; };
@@ -312,6 +317,7 @@
 		0C7B993B9F73DE60D1EB67D0 /* AgenticMenuBarTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = AgenticMenuBarTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		0EB275310DD20859F539D45D /* XPCHandlerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XPCHandlerTests.swift; sourceTree = "<group>"; };
 		0F0E0663E39C69745BC18242 /* AnalyticsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalyticsTests.swift; sourceTree = "<group>"; };
+		13568372D2F1C785DC23FC6B /* StrategyEndpointsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StrategyEndpointsTests.swift; sourceTree = "<group>"; };
 		14BE82F4CD7642341EE296BF /* SSEBroadcasterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSEBroadcasterTests.swift; sourceTree = "<group>"; };
 		165BFC48385BA405527735B7 /* JobRun.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JobRun.swift; sourceTree = "<group>"; };
 		1A5A34274B154F4117E1059D /* JobLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JobLoader.swift; sourceTree = "<group>"; };
@@ -326,12 +332,16 @@
 		2634EF9222F61D76E2B427EA /* HTTPServer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HTTPServer.swift; sourceTree = "<group>"; };
 		27181FB6B650CE4D782A6E0D /* JobRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JobRequest.swift; sourceTree = "<group>"; };
 		2F7CE5BF4DF74F845CEB3954 /* XPCService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XPCService.swift; sourceTree = "<group>"; };
+		33EFBA9D2ADF84F6FB51973B /* EventStrategyEndpoints.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventStrategyEndpoints.swift; sourceTree = "<group>"; };
 		36642F15E736B4A49E632BC9 /* AgenticMenuBar */ = {isa = PBXFileReference; includeInIndex = 0; path = AgenticMenuBar; sourceTree = BUILT_PRODUCTS_DIR; };
+		387082F7FAE02633E37E5997 /* TimingStrategyEndpoints.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimingStrategyEndpoints.swift; sourceTree = "<group>"; };
 		3DA1F0B28D77098BFEBCD636 /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
 		3DC1DE4C9AC6017CAE0B0D69 /* DaemonStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DaemonStatus.swift; sourceTree = "<group>"; };
 		423F284ECF060E1E9409D54C /* SchedulerEdgeCaseTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SchedulerEdgeCaseTests.swift; sourceTree = "<group>"; };
 		427A2C084733B9E3159B36E4 /* CrashReportTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CrashReportTests.swift; sourceTree = "<group>"; };
+		4320829358C3B9A3479B4D66 /* DaemonHealthRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DaemonHealthRouter.swift; sourceTree = "<group>"; };
 		453A83445DC8E3CAE1D60051 /* AgenticDaemonTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = AgenticDaemonTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		470987969595CA635E8D54B9 /* StrategyHTTPEndpoints.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StrategyHTTPEndpoints.swift; sourceTree = "<group>"; };
 		47A8BD1C7F87888B1AC5A545 /* TimingStrategy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimingStrategy.swift; sourceTree = "<group>"; };
 		47C08F6788DB0F9C01214714 /* EventStrategyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventStrategyTests.swift; sourceTree = "<group>"; };
 		4A7A1EEDC8F75F028135544F /* DaemonClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DaemonClient.swift; sourceTree = "<group>"; };
@@ -573,11 +583,13 @@
 		6500DE0B162BAD9B6ABFA194 /* HTTP */ = {
 			isa = PBXGroup;
 			children = (
+				4320829358C3B9A3479B4D66 /* DaemonHealthRouter.swift */,
 				4AA2D3FD0713A2EA190B3BF1 /* DaemonHTTPRouter.swift */,
 				DD926F5C00BF7896680B3F84 /* HTTPRequest.swift */,
 				ACDA197F5E8E3A1EDEC0F3B2 /* HTTPResponse.swift */,
 				AC168D413CE8000553998F49 /* HTTPServer.swift */,
 				ABDD3DABC2EB5BF7B68E601B /* SSEBroadcaster.swift */,
+				470987969595CA635E8D54B9 /* StrategyHTTPEndpoints.swift */,
 			);
 			path = HTTP;
 			sourceTree = "<group>";
@@ -596,6 +608,7 @@
 			isa = PBXGroup;
 			children = (
 				47A8BD1C7F87888B1AC5A545 /* TimingStrategy.swift */,
+				387082F7FAE02633E37E5997 /* TimingStrategyEndpoints.swift */,
 			);
 			path = Timing;
 			sourceTree = "<group>";
@@ -650,6 +663,7 @@
 				5A68BA1575058463028D9937 /* HTTPServerTests.swift */,
 				423F284ECF060E1E9409D54C /* SchedulerEdgeCaseTests.swift */,
 				14BE82F4CD7642341EE296BF /* SSEBroadcasterTests.swift */,
+				13568372D2F1C785DC23FC6B /* StrategyEndpointsTests.swift */,
 				21BD87522B4E605DFAD1889E /* TaskScheduleTests.swift */,
 				A7FBC99C9879E4591D1A7BFF /* TimingStrategyTests.swift */,
 			);
@@ -701,6 +715,7 @@
 			children = (
 				FCC8F49E377041F36AAC8585 /* EventHandler.swift */,
 				BB1B088FA6591FC33FF4741A /* EventStrategy.swift */,
+				33EFBA9D2ADF84F6FB51973B /* EventStrategyEndpoints.swift */,
 				1CFCF2A01FEAB4B764FB38FF /* Trigger.swift */,
 			);
 			path = Event;
@@ -1121,18 +1136,22 @@
 				32BEFAFA2CDB2997BA503133 /* DaemonEngine.swift in Sources */,
 				D819CBA4566E690EBF9FE191 /* DaemonHTTPClient.swift in Sources */,
 				B9D155142B6EE7340D4A5E94 /* DaemonHTTPRouter.swift in Sources */,
+				D949E1875C89322B4CB7DD12 /* DaemonHealthRouter.swift in Sources */,
 				C8E3DDDFD3AEDB4854E2FCA6 /* DaemonStrategy.swift in Sources */,
 				468B47B5D5D307D8072F705F /* DirectoryWatcher.swift in Sources */,
 				0BF427C016C37FC8505765BF /* EventHandler.swift in Sources */,
 				66F8CCC38280252D267F29DB /* EventStrategy.swift in Sources */,
+				50A16A28CF4A7075EC15BBB3 /* EventStrategyEndpoints.swift in Sources */,
 				7AB7101103990EBFFF4D0847 /* HTTPRequest.swift in Sources */,
 				EA5AF91E5418742B47594535 /* HTTPResponse.swift in Sources */,
 				AAEE98F35C4E37CFCEAFF5F3 /* HTTPServer.swift in Sources */,
 				8497995484120671A77CBBB4 /* SSEBroadcaster.swift in Sources */,
 				7861ECC22CC68F97C75EFC0F /* Scheduler.swift in Sources */,
 				B1E31C51CB3E5B503314FE0C /* StatusWriter.swift in Sources */,
+				F8599FD26AC1A93BBF187E54 /* StrategyHTTPEndpoints.swift in Sources */,
 				D32B47D48B24B5F3C3CA9FE1 /* TaskProtocols.swift in Sources */,
 				8CC6601C72133EE084206D7B /* TimingStrategy.swift in Sources */,
+				DD3FB7E157A81057BC964454 /* TimingStrategyEndpoints.swift in Sources */,
 				280F36CAC4A5E37FE10CA7D9 /* Trigger.swift in Sources */,
 				A250B02C5B9CDC4725F7126C /* XPCServer.swift in Sources */,
 			);
@@ -1215,6 +1234,7 @@
 				AC4A12D06458DDE7AECDEBD7 /* HTTPServerTests.swift in Sources */,
 				9DE8C09ED9BE28187F99A8EC /* SSEBroadcasterTests.swift in Sources */,
 				9ED72C25784BEC77DAAF4BD3 /* SchedulerEdgeCaseTests.swift in Sources */,
+				D55893B7CEACC8A3B28A042D /* StrategyEndpointsTests.swift in Sources */,
 				285ACBFB42C41B5BE25F81B2 /* TaskScheduleTests.swift in Sources */,
 				A7D4892D933B7C844E68DC0E /* TimingStrategyTests.swift in Sources */,
 			);
