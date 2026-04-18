@@ -100,10 +100,66 @@ public final class StatusBarAppDelegate: NSObject, NSApplicationDelegate {
     private func updateIcon(isReachable: Bool) {
         guard let button = statusItem?.button else { return }
         if let menuImage {
-            button.image = menuImage
+            if isReachable {
+                button.image = menuImage
+            } else {
+                button.image = Self.imageWithUnreachableBadge(
+                    base: menuImage,
+                    appearance: button.effectiveAppearance
+                )
+            }
             button.title = ""
         } else {
             button.title = isReachable ? menuIcon : "●"
         }
+    }
+
+    /// Render the base template icon tinted for the menubar appearance with a
+    /// yellow exclamation badge overlaid in the lower-right corner. Returned
+    /// image is non-template so the yellow is preserved.
+    private static func imageWithUnreachableBadge(
+        base: NSImage,
+        appearance: NSAppearance
+    ) -> NSImage {
+        let size = base.size
+        let badged = NSImage(size: size, flipped: false) { rect in
+            appearance.performAsCurrentDrawingAppearance {
+                base.draw(in: rect, from: .zero, operation: .sourceOver, fraction: 1.0)
+                NSColor.labelColor.set()
+                rect.fill(using: .sourceIn)
+            }
+            let side = rect.width * 0.65
+            let badgeRect = NSRect(
+                x: rect.maxX - side,
+                y: rect.minY,
+                width: side,
+                height: side
+            )
+            if let badge = tintedSymbol(
+                name: "exclamationmark.circle.fill",
+                color: .systemYellow,
+                side: side
+            ) {
+                badge.draw(in: badgeRect, from: .zero, operation: .sourceOver, fraction: 1.0)
+            }
+            return true
+        }
+        badged.isTemplate = false
+        return badged
+    }
+
+    private static func tintedSymbol(name: String, color: NSColor, side: CGFloat) -> NSImage? {
+        let config = NSImage.SymbolConfiguration(pointSize: side * 0.9, weight: .heavy)
+        guard let symbol = NSImage(systemSymbolName: name, accessibilityDescription: nil)?
+            .withSymbolConfiguration(config)
+        else { return nil }
+        let tinted = NSImage(size: NSSize(width: side, height: side), flipped: false) { rect in
+            symbol.draw(in: rect, from: .zero, operation: .sourceOver, fraction: 1.0)
+            color.set()
+            rect.fill(using: .sourceIn)
+            return true
+        }
+        tinted.isTemplate = false
+        return tinted
     }
 }
