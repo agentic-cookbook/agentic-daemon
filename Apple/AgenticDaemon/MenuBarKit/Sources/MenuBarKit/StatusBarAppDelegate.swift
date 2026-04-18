@@ -102,7 +102,6 @@ public final class StatusBarAppDelegate: NSObject, NSApplicationDelegate {
         if let menuImage {
             button.image = menuImage
             button.title = ""
-            button.appearsDisabled = !isReachable
         } else {
             button.title = isReachable ? menuIcon : "●"
         }
